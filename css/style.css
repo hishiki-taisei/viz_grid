@@ -51,19 +51,55 @@ body {
      font-size: 0.75rem;
      color: #6b7280;
 }
-.filename-header {
-    font-size: 1.125rem;
-    font-weight: 600;
+.filename-header-container { /* New container for header and button */
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Push button to the right */
+    border-bottom: 2px solid #d1d5db;
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #d1d5db;
+}
+.filename-header {
+    /* Remove margin/padding/border properties moved to container */
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+    /* Keep existing font, cursor, transition styles */
+    font-size: 1.125rem;
+    font-weight: 600;
     word-break: break-all;
-    cursor: pointer; /* Add cursor pointer */
+    cursor: pointer;
     transition: color 0.2s ease;
+    flex-grow: 1; /* Allow header to take space */
+    margin-right: 1rem; /* Space between header and button */
 }
 .filename-header:hover {
-    color: #2563eb; /* Change color on hover */
+    color: #2563eb;
+}
+.toggle-group-button { /* Style for the +/- button */
+    background-color: #e5e7eb; /* Light gray background */
+    color: #4b5563; /* Darker gray text */
+    border: none;
+    border-radius: 50%; /* Make it round */
+    width: 24px;
+    height: 24px;
+    font-size: 1rem;
+    font-weight: bold;
+    line-height: 1; /* Center text vertically */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+.toggle-group-button:hover {
+    background-color: #d1d5db; /* Slightly darker on hover */
+}
+.file-grid.collapsed { /* Style for collapsed grid */
+    display: none;
 }
 #message-area {
     min-height: 50px;
@@ -260,6 +296,18 @@ body.lightbox-open {
 /* Background scroll lock for fullscreen view */
 body.fullscreen-open {
     overflow: hidden;
+}
+
+/* Style for the ghost element during drag */
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #d1e9ff; /* Light blue background for ghost */
+}
+
+/* Optional: Style for the chosen element */
+.sortable-chosen {
+    /* You can add styles for the element being dragged */
+    /* Example: box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); */
 }
 
 /* --- Folder List Styles --- */

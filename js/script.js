@@ -15,6 +15,7 @@ const folderList = document.getElementById('folder-list');
 const fullscreenView = document.getElementById('fullscreen-view');
 const fullscreenGrid = document.getElementById('fullscreen-grid');
 const fullscreenClose = document.getElementById('fullscreen-close');
+let currentSortableInstance = null; // To hold the Sortable instance
 
 // { filename: [{ folder: string, relativePath: string, file: File, dataUrl: string }] }
 let imageGroups = {};
@@ -51,10 +52,11 @@ lightbox.addEventListener('click', (e) => {
     }
 });
 
-// グリッド内の画像クリック（イベント委譲）およびヘッダークリック（フルスクリーンビュー）
+// グリッド内の画像クリック、ヘッダークリック、トグルボタンクリック
 gridContainer.addEventListener('click', (e) => {
     const imageItem = e.target.closest('.image-item');
     const header = e.target.closest('.filename-header');
+    const toggleButton = e.target.closest('.toggle-group-button');
 
     if (imageItem) { // Handle image click for lightbox
         const filename = imageItem.dataset.filename;
@@ -68,6 +70,12 @@ gridContainer.addEventListener('click', (e) => {
         console.log(`Filename header clicked: ${filename}`);
         if (filename) {
             openFullScreenView(filename);
+        }
+    } else if (toggleButton) { // Handle toggle button click
+        const filename = toggleButton.dataset.filename;
+        console.log(`Toggle button clicked for: ${filename}`);
+        if (filename) {
+            toggleGroupVisibility(filename, toggleButton);
         }
     }
 });
@@ -277,15 +285,31 @@ function renderGrid() {
 
         console.log(`Rendering group for filename: ${filename}`, group);
 
+        // Create container for header and toggle button
+        const headerContainer = document.createElement('div');
+        headerContainer.className = 'filename-header-container';
+
         const filenameHeader = document.createElement('h2');
-        filenameHeader.className = 'filename-header cursor-pointer'; // Add cursor-pointer class
+        filenameHeader.className = 'filename-header cursor-pointer';
         filenameHeader.textContent = filename;
-        filenameHeader.dataset.filename = filename; // Store filename in data attribute
-        gridContainer.appendChild(filenameHeader);
+        filenameHeader.dataset.filename = filename;
+
+        // Create toggle button
+        const toggleButton = document.createElement('button');
+        toggleButton.className = 'toggle-group-button';
+        toggleButton.textContent = '-'; // Default to expanded
+        toggleButton.dataset.filename = filename;
+        toggleButton.setAttribute('aria-label', `グループ ${filename} を隠す`);
+        toggleButton.dataset.expanded = 'true'; // Track state
+
+        headerContainer.appendChild(filenameHeader);
+        headerContainer.appendChild(toggleButton);
+        gridContainer.appendChild(headerContainer);
 
         const fileGrid = document.createElement('div');
+        fileGrid.dataset.gridFilename = filename;
         const numColumns = Math.min(group.length, 6);
-        fileGrid.className = `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${numColumns} gap-4`;
+        fileGrid.className = `file-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${numColumns} gap-4`;
 
         const sortedGroup = group.sort((a, b) => {
             const folderCompare = a.folder.localeCompare(b.folder);
@@ -339,6 +363,35 @@ function renderGrid() {
         gridContainer.appendChild(fileGrid);
     });
     console.log("Grid rendering complete.");
+}
+
+/**
+ * Toggles the visibility of an image group grid.
+ * @param {string} filename - The filename group to toggle.
+ * @param {HTMLElement} buttonElement - The button that was clicked.
+ */
+function toggleGroupVisibility(filename, buttonElement) {
+    const fileGrid = gridContainer.querySelector(`[data-grid-filename="${filename}"]`);
+    if (!fileGrid) {
+        console.error(`Could not find grid for filename: ${filename}`);
+        return;
+    }
+
+    const isExpanded = buttonElement.dataset.expanded === 'true';
+
+    if (isExpanded) {
+        fileGrid.classList.add('collapsed');
+        buttonElement.textContent = '+';
+        buttonElement.dataset.expanded = 'false';
+        buttonElement.setAttribute('aria-label', `グループ ${filename} を表示`);
+        console.log(`Collapsed group: ${filename}`);
+    } else {
+        fileGrid.classList.remove('collapsed');
+        buttonElement.textContent = '-';
+        buttonElement.dataset.expanded = 'true';
+        buttonElement.setAttribute('aria-label', `グループ ${filename} を隠す`);
+        console.log(`Expanded group: ${filename}`);
+    }
 }
 
 function resetGrid() {
@@ -565,7 +618,7 @@ function handleLightboxKeys(e) {
 // --- フルスクリーンビュー関数 ---
 
 /**
- * Opens the fullscreen view for a specific filename group.
+ * Opens the fullscreen view for a specific filename group and enables sorting.
  * @param {string} filename - The filename group to display.
  */
 function openFullScreenView(filename) {
@@ -632,16 +685,38 @@ function openFullScreenView(filename) {
         fullscreenGrid.appendChild(imgContainer);
     });
 
+    // Initialize SortableJS on the fullscreen grid
+    if (typeof Sortable !== 'undefined') {
+        currentSortableInstance = new Sortable(fullscreenGrid, {
+            animation: 150, // ms, animation speed moving items when sorting, `0` — without animation
+            ghostClass: 'sortable-ghost', // Class name for the drop placeholder
+            chosenClass: 'sortable-chosen', // Class name for the chosen item
+            // Note: This sorting only affects the DOM within fullscreen view,
+            // it does not update the underlying imageGroups data.
+        });
+        console.log("SortableJS initialized for fullscreen view.");
+    } else {
+        console.warn("SortableJS library not found. Drag-and-drop reordering disabled.");
+    }
+
     fullscreenView.classList.add('show');
     document.body.classList.add('fullscreen-open'); // Lock body scroll
 }
 
 /**
- * Closes the fullscreen view.
+ * Closes the fullscreen view and destroys the SortableJS instance.
  */
 function closeFullScreenView() {
     fullscreenView.classList.remove('show');
     document.body.classList.remove('fullscreen-open'); // Unlock body scroll
+
+    // Destroy the Sortable instance if it exists
+    if (currentSortableInstance) {
+        currentSortableInstance.destroy();
+        currentSortableInstance = null;
+        console.log("SortableJS instance destroyed.");
+    }
+
     console.log("Fullscreen view closed");
 }
 
