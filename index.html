@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viz Grid - 画像比較ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css"> <!-- Link to external CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-8">
+
+    <div class="container mx-auto max-w-7xl bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Viz Grid</h1>
+        <p class="text-gray-600 mb-6 text-center">
+            比較したい画像ファイルが含まれるフォルダ（サブフォルダも可）を複数、下のエリアにドラッグ＆ドロップしてください。<br>
+            同名の画像ファイルがフォルダごとに並べて表示されます。画像をクリックすると拡大表示します。
+        </p>
+
+        <div id="drop-zone" class="border-4 border-dashed border-gray-300 p-10 rounded-lg text-center cursor-pointer hover:border-blue-400 transition-colors duration-300 bg-gray-50">
+            <p class="text-gray-500">ここにフォルダをドラッグ＆ドロップ</p>
+            <p class="text-sm text-gray-400 mt-2">(画像ファイルが含まれるフォルダを選択してください)</p>
+            <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
+        </div>
+
+        <div id="message-area" class="mt-4 text-center text-blue-600"></div>
+
+        <div class="text-center mt-4">
+            <button id="clear-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow hidden">
+                表示をクリア
+            </button>
+        </div>
+
+        <!-- Added Folder List Section -->
+        <div id="folder-list-section" class="mt-6 hidden">
+            <h3 class="text-lg font-semibold mb-2 text-gray-700">読み込み済みフォルダ:</h3>
+            <ul id="folder-list" class="list-disc pl-5 space-y-1">
+                <!-- Folder items will be added here by JavaScript -->
+            </ul>
+        </div>
+
+        <div id="grid-container" class="mt-8">
+        </div>
+    </div>
+
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-content">
+             <button id="lightbox-close" class="lightbox-close" aria-label="閉じる">&times;</button>
+             <button id="lightbox-prev" class="lightbox-prev" aria-label="前の画像">&#10094;</button>
+             <button id="lightbox-next" class="lightbox-next" aria-label="次の画像">&#10095;</button>
+             <div class="lightbox-image-container">
+                 <img id="lightbox-img" src="" alt="拡大画像">
+             </div>
+            <div id="lightbox-info" class="lightbox-info">
+                <p class="folder-name"></p>
+                <p class="relative-path"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Added Fullscreen View Container -->
+    <div id="fullscreen-view" class="fullscreen-view">
+        <button id="fullscreen-close" class="fullscreen-close" aria-label="閉じる">&times;</button>
+        <div id="fullscreen-grid" class="fullscreen-grid">
+            <!-- Fullscreen image grid will be generated here -->
+        </div>
+    </div>
+
+    <script src="js/script.js"></script> <!-- Link to external JavaScript -->
+
+</body>
+</html>

@@ -1,0 +1,343 @@
+/* カスタムスタイル */
+body {
+    font-family: 'Inter', sans-serif;
+}
+.drag-over {
+    border-color: rgb(34 197 94);
+    background-color: rgb(240 253 244);
+}
+#grid-container {
+    min-height: 200px;
+}
+.image-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background-color: #f9fafb;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    cursor: pointer; /* クリック可能を示すカーソル */
+}
+ .image-item:hover {
+     border-color: #9ca3af; /* ホバー時に枠線を少し濃く */
+     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+ }
+.image-item img {
+    display: block;
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    background-color: #ffffff;
+    flex-shrink: 0;
+}
+.image-item .info {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    text-align: center;
+    background-color: #f3f4f6;
+    border-top: 1px solid #e5e7eb;
+    word-break: break-all;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+ .image-item .info .folder-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+.image-item .info .relative-path {
+     font-size: 0.75rem;
+     color: #6b7280;
+}
+.filename-header {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #d1d5db;
+    word-break: break-all;
+    cursor: pointer; /* Add cursor pointer */
+    transition: color 0.2s ease;
+}
+.filename-header:hover {
+    color: #2563eb; /* Change color on hover */
+}
+#message-area {
+    min-height: 50px;
+}
+button {
+    transition: background-color 0.2s ease-in-out;
+}
+
+/* --- ライトボックス スタイル --- */
+.lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); /* 半透明の黒背景 */
+    display: flex; /* Flexboxで中央揃え */
+    justify-content: center;
+    align-items: center;
+    z-index: 1200; /* 最前面に表示 */
+    opacity: 0; /* 初期状態は非表示 */
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease; /* フェードイン/アウト */
+    padding: 1rem; /* 内側余白 */
+}
+.lightbox.show {
+    opacity: 1;
+    visibility: visible;
+}
+.lightbox-content {
+    position: relative;
+    background-color: #fff;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    max-width: 90vw; /* 最大幅 */
+    max-height: 90vh; /* 最大高さ */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* 中央揃え */
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+.lightbox-image-container {
+     width: 100%;
+     flex-grow: 1; /* 画像エリアが可能な限り高さを取る */
+     display: flex;
+     justify-content: center;
+     align-items: center;
+     margin-bottom: 1rem; /* 情報エリアとの間隔 */
+     overflow: hidden; /* コンテナからはみ出さないように */
+}
+.lightbox img {
+    display: block;
+    max-width: 100%; /* コンテナ幅に合わせる */
+    max-height: 75vh; /* 高さを制限 */
+    height: auto; /* アスペクト比維持 */
+    object-fit: contain;
+}
+.lightbox-info {
+    text-align: center;
+    margin-top: 0.5rem; /* 画像との間隔 */
+    font-size: 0.875rem;
+     width: 100%; /* 幅を確保 */
+     padding: 0.5rem;
+     background-color: #f9fafb;
+     border-radius: 0.25rem;
+}
+ .lightbox-info .folder-name {
+     font-weight: 600;
+ }
+ .lightbox-info .relative-path {
+     font-size: 0.75rem;
+     color: #6b7280;
+     margin-top: 0.25rem;
+ }
+.lightbox-close,
+.lightbox-prev,
+.lightbox-next {
+    position: absolute;
+    background-color: rgba(50, 50, 50, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.5rem; /* アイコンサイズ */
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s ease;
+    z-index: 1210; /* ボタンを画像より手前に */
+}
+.lightbox-close:hover,
+.lightbox-prev:hover,
+.lightbox-next:hover {
+    background-color: rgba(0, 0, 0, 0.9);
+}
+.lightbox-close {
+    top: -15px; /* 少し上にずらす */
+    right: -15px; /* 少し右にずらす */
+}
+.lightbox-prev {
+    top: 50%;
+    left: 1rem; /* 左端からの距離 */
+    transform: translateY(-50%);
+}
+.lightbox-next {
+    top: 50%;
+    right: 1rem; /* 右端からの距離 */
+    transform: translateY(-50%);
+}
+ /* ボタンが無効な時のスタイル */
+ .lightbox-prev:disabled,
+ .lightbox-next:disabled {
+     opacity: 0.3;
+     cursor: default;
+     background-color: rgba(50, 50, 50, 0.5);
+ }
+
+/* 背景スクロール禁止用 */
+body.lightbox-open {
+    overflow: hidden;
+}
+
+/* --- Fullscreen View Styles --- */
+.fullscreen-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.98); /* Slightly transparent white background */
+    z-index: 1100; /* Above lightbox */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    overflow-y: auto; /* Allow scrolling within the view */
+    padding: 4rem 2rem 2rem 2rem; /* Padding top for close button, others for content */
+    box-sizing: border-box;
+}
+
+.fullscreen-view.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.fullscreen-close {
+    position: fixed; /* Fixed position relative to viewport */
+    top: 1rem;
+    right: 1.5rem;
+    background-color: rgba(50, 50, 50, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.8rem; /* Larger close icon */
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s ease;
+    z-index: 1110; /* Above grid content */
+    line-height: 1; /* Adjust line height for better centering */
+}
+
+.fullscreen-close:hover {
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.fullscreen-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Two columns */
+    gap: 1.5rem; /* Gap between items */
+    max-width: 1600px; /* Limit max width */
+    margin: 0 auto; /* Center the grid */
+}
+
+/* Reuse image-item styles for consistency, potentially override some */
+.fullscreen-grid .image-item {
+    /* Inherits most styles from .image-item */
+    height: auto; /* Adjust height if needed */
+}
+
+.fullscreen-grid .image-item img {
+    /* Remove fixed height, let it scale */
+    height: auto; /* Allow natural height based on width */
+    width: 100%; /* Ensure image fills container width */
+    object-fit: contain;
+    display: block; /* Ensure block display */
+    background-color: #ffffff; /* Keep background for contain */
+}
+
+/* Background scroll lock for fullscreen view */
+body.fullscreen-open {
+    overflow: hidden;
+}
+
+/* --- Folder List Styles --- */
+#folder-list-section {
+    padding: 1rem;
+    background-color: #f9fafb; /* Light gray background */
+    border: 1px solid #e5e7eb; /* Light border */
+    border-radius: 0.375rem; /* Rounded corners */
+}
+
+#folder-list li {
+    display: flex;
+    justify-content: space-between; /* Align items: name left, params right */
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+#folder-list li:last-child {
+    border-bottom: none;
+}
+
+#folder-list .folder-name-container { /* Container for name and potentially other left-aligned info */
+    flex-grow: 1; /* Allow name to take available space */
+    word-break: break-all;
+    margin-right: 1rem; /* Space between name and params */
+}
+
+#folder-list .folder-params { /* Style for the parameter column container */
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: #6b7280;
+    display: flex; /* Use flexbox to layout parameter parts */
+    gap: 0.75rem; /* Add space between parameter parts */
+    align-items: center;
+    min-width: 220px; /* Adjust minimum width as needed */
+    justify-content: flex-start; /* Align parts to the start */
+}
+
+.param-part { /* Style for individual parameter spans */
+    white-space: nowrap; /* Prevent wrapping within a parameter */
+    display: inline-block; /* Treat as block for width */
+}
+
+/* Optional: Define min-width for specific parts if needed for alignment */
+.param-part.seed-param {
+     min-width: 70px; /* Adjust width for Seed */
+     text-align: left;
+}
+.param-part.persona-param {
+     min-width: 40px; /* Adjust width for P */
+     text-align: left;
+}
+.param-part.memory-param {
+     min-width: 100px; /* Adjust width for M */
+     text-align: left;
+}
+
+#folder-list .delete-folder-button {
+    background-color: #ef4444; /* Red background */
+    color: white;
+    border: none;
+    border-radius: 0.25rem; /* Slightly rounded */
+    padding: 0.125rem 0.5rem; /* Smaller padding */
+    font-size: 0.75rem; /* Smaller font */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0; /* Prevent button from shrinking */
+    margin-left: 1rem; /* Add space between params and delete button */
+}
+
+#folder-list .delete-folder-button:hover {
+    background-color: #dc2626; /* Darker red on hover */
+}
+
+/* Hide helper class */
+.hidden {
+    display: none;
+}
