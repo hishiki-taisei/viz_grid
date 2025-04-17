@@ -37,6 +37,38 @@
         <!-- Added Folder List Section -->
         <div id="folder-list-section" class="mt-6 hidden">
             <h3 class="text-lg font-semibold mb-2 text-gray-700">読み込み済みフォルダ:</h3>
+
+            <!-- Added Filter Controls -->
+            <div id="folder-filter-controls" class="mb-4 p-3 bg-gray-100 rounded border border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span class="font-medium text-sm text-gray-600">フィルター:</span>
+                <div class="filter-group">
+                    <label for="filter-seed" class="text-sm mr-1">SEED:</label>
+                    <input type="text" id="filter-seed" name="filter-seed" class="filter-input text-sm border border-gray-300 rounded px-2 py-1 w-20" placeholder="指定なし">
+                </div>
+                <div class="filter-group flex items-center">
+                    <label class="text-sm mr-1">Personality:</label>
+                    <select id="filter-personality" name="filter-personality" class="filter-select text-sm border border-gray-300 rounded px-2 py-1">
+                        <option value="">指定なし</option>
+                        <option value="true">✅ Yes</option>
+                        <option value="false">❌ No</option>
+                    </select>
+                </div>
+                <div class="filter-group flex items-center">
+                    <label class="text-sm mr-1">Memory:</label>
+                    <select id="filter-memory" name="filter-memory" class="filter-select text-sm border border-gray-300 rounded px-2 py-1">
+                        <option value="">指定なし</option>
+                        <option value="true">✅ Yes</option>
+                        <option value="false">❌ No</option>
+                    </select>
+                </div>
+                <!-- 追加: Memory Length フィルター -->
+                <div class="filter-group flex items-center">
+                    <label for="filter-memory-length" class="text-sm mr-1">Len:</label>
+                    <input type="number" id="filter-memory-length" min="0" placeholder="e.g., 10" class="filter-input text-sm border border-gray-300 rounded px-2 py-1 w-20">
+                </div>
+                 <button id="reset-filter-button" class="text-sm text-blue-600 hover:text-blue-800 underline ml-auto">フィルター解除</button>
+            </div>
+
             <ul id="folder-list" class="list-disc pl-5 space-y-1">
                 <!-- Folder items will be added here by JavaScript -->
             </ul>

@@ -310,6 +310,32 @@ body.fullscreen-open {
     /* Example: box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); */
 }
 
+/* --- Folder Filter Styles --- */
+#folder-filter-controls {
+    /* Using Tailwind classes, but can add specific styles here if needed */
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+}
+
+.filter-input,
+.filter-select {
+    /* Using Tailwind classes, but can add base styles */
+    transition: border-color 0.2s ease;
+}
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: #60a5fa; /* Blue border on focus */
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+}
+
+#reset-filter-button {
+    /* Using Tailwind classes */
+}
+
 /* --- Folder List Styles --- */
 #folder-list-section {
     padding: 1rem;

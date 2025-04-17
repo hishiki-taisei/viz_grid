@@ -15,6 +15,11 @@ const folderList = document.getElementById('folder-list');
 const fullscreenView = document.getElementById('fullscreen-view');
 const fullscreenGrid = document.getElementById('fullscreen-grid');
 const fullscreenClose = document.getElementById('fullscreen-close');
+const filterSeedInput = document.getElementById('filter-seed');
+const filterPersonalitySelect = document.getElementById('filter-personality');
+const filterMemorySelect = document.getElementById('filter-memory');
+const filterMemoryLengthInput = document.getElementById('filter-memory-length'); // 追加
+const resetFilterButton = document.getElementById('reset-filter-button');
 let currentSortableInstance = null; // To hold the Sortable instance
 
 // { filename: [{ folder: string, relativePath: string, file: File, dataUrl: string }] }
@@ -23,6 +28,14 @@ let processedFolderCount = 0;
 let totalFoldersToProcess = 0;
 let droppedFolders = new Set();
 let folderParameters = {}; // Store parameters per folder { folderName: { usePersonality: bool, useMemory: bool, memoryLength: int, seed: number } }
+
+// Filter state
+let currentFilters = {
+    seed: '',
+    personality: '', // '', 'true', 'false'
+    memory: '',       // '', 'true', 'false'
+    memoryLength: '' // 追加 (数値または空文字)
+};
 
 // ライトボックス用状態変数
 let currentLightboxGroup = []; // 現在ライトボックスで表示中のファイル名グループ
@@ -105,6 +118,30 @@ fullscreenGrid.addEventListener('click', (e) => {
         }
     }
 });
+
+// Filter input listeners
+filterSeedInput.addEventListener('input', () => {
+    currentFilters.seed = filterSeedInput.value.trim();
+    renderFolderList(); // Re-render list on filter change
+    renderGrid(); // Re-render grid on filter change
+});
+filterPersonalitySelect.addEventListener('change', () => {
+    currentFilters.personality = filterPersonalitySelect.value;
+    renderFolderList(); // Re-render list on filter change
+    renderGrid(); // Re-render grid on filter change
+});
+filterMemorySelect.addEventListener('change', () => {
+    currentFilters.memory = filterMemorySelect.value;
+    renderFolderList(); // Re-render list on filter change
+    renderGrid(); // Re-render grid on filter change
+});
+// 追加: Memory Length フィルターのリスナー
+filterMemoryLengthInput.addEventListener('input', () => {
+    currentFilters.memoryLength = filterMemoryLengthInput.value.trim();
+    renderFolderList(); // Re-render list on filter change
+    renderGrid(); // Re-render grid on filter change
+});
+resetFilterButton.addEventListener('click', resetFilters);
 
 // --- ファイル/フォルダ処理関数 ---
 
@@ -259,6 +296,7 @@ function handleClear() {
     processedFolderCount = 0;
     droppedFolders.clear();
     folderParameters = {}; // Clear parameters
+    resetFilters(); // Reset filters as well
     renderFolderList();
     console.log("Grid cleared");
 }
@@ -268,101 +306,135 @@ function renderGrid() {
     console.log("Rendering grid...");
     gridContainer.innerHTML = '';
 
-    const sortedFilenames = Object.keys(imageGroups).sort();
-    console.log("Sorted filenames:", sortedFilenames);
+    // 1. Filter the folders based on currentFilters (same logic as renderFolderList)
+    const sortedFolderNames = Array.from(droppedFolders).sort();
+    const filteredFolderNames = sortedFolderNames.filter(folderName => {
+        const params = folderParameters[folderName];
+        const seedFilterMatch = currentFilters.seed === '' || (params && params.seed !== undefined && String(params.seed).includes(currentFilters.seed));
+        const personalityFilterMatch = currentFilters.personality === '' || (params && String(params.usePersonality) === currentFilters.personality);
+        const memoryFilterMatch = currentFilters.memory === '' || (params && String(params.useMemory) === currentFilters.memory);
+        const memoryLengthFilterMatch = currentFilters.memoryLength === '' ||
+            (params && params.useMemory === true && params.memoryLength !== undefined && String(params.memoryLength) === currentFilters.memoryLength);
+        return seedFilterMatch && personalityFilterMatch && memoryFilterMatch && memoryLengthFilterMatch;
+    });
+    const filteredFolderSet = new Set(filteredFolderNames); // For efficient lookup
 
-    if (sortedFilenames.length === 0 && droppedFolders.size > 0) {
-        gridContainer.innerHTML = '<p class="text-gray-500 text-center">表示対象の画像ファイルが見つかりませんでした。フォルダ一覧からフォルダを削除するか、新しいフォルダを追加してください。</p>';
-        return;
-    } else if (sortedFilenames.length === 0) {
+    // 2. Get all filenames from imageGroups and sort them
+    const allFilenames = Object.keys(imageGroups).sort();
+    console.log("All filenames:", allFilenames);
+    console.log("Filtered folders:", filteredFolderNames);
+
+    let displayedGroupsCount = 0; // Track if any groups are displayed after filtering
+
+    // 3. Iterate through sorted filenames and render groups if they contain images from filtered folders
+    allFilenames.forEach(filename => {
+        const originalGroup = imageGroups[filename];
+        if (!originalGroup || originalGroup.length === 0) return;
+
+        // Filter the items within the group based on the filtered folders
+        const filteredGroup = originalGroup.filter(item => filteredFolderSet.has(item.folder));
+
+        // Only render the group if it has images after filtering
+        if (filteredGroup.length > 0) {
+            displayedGroupsCount++;
+            console.log(`Rendering filtered group for filename: ${filename}`, filteredGroup);
+
+            // Create container for header and toggle button
+            const headerContainer = document.createElement('div');
+            headerContainer.className = 'filename-header-container';
+
+            const filenameHeader = document.createElement('h2');
+            filenameHeader.className = 'filename-header cursor-pointer';
+            filenameHeader.textContent = filename;
+            filenameHeader.dataset.filename = filename;
+
+            // Create toggle button
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'toggle-group-button';
+            toggleButton.textContent = '-'; // Default to expanded
+            toggleButton.dataset.filename = filename;
+            toggleButton.setAttribute('aria-label', `グループ ${filename} を隠す`);
+            toggleButton.dataset.expanded = 'true'; // Track state
+
+            headerContainer.appendChild(filenameHeader);
+            headerContainer.appendChild(toggleButton);
+            gridContainer.appendChild(headerContainer);
+
+            const fileGrid = document.createElement('div');
+            fileGrid.dataset.gridFilename = filename;
+            // Adjust columns based on the *filtered* group length
+            const numColumns = Math.min(filteredGroup.length, 6);
+            fileGrid.className = `file-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${numColumns} gap-4`;
+
+            // Sort the filtered group for consistent display order
+            const sortedFilteredGroup = filteredGroup.sort((a, b) => {
+                const folderCompare = a.folder.localeCompare(b.folder);
+                return folderCompare !== 0 ? folderCompare : a.relativePath.localeCompare(b.relativePath);
+            });
+
+            // IMPORTANT: Store the sorted filtered group for lightbox/fullscreen use
+            // We'll use a temporary mapping for this render cycle
+            if (!window.tempFilteredGroups) window.tempFilteredGroups = {};
+            window.tempFilteredGroups[filename] = sortedFilteredGroup;
+
+            sortedFilteredGroup.forEach((item, index) => {
+                console.log(`Creating image element for: ${item.folder}/${item.relativePath}`);
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'image-item';
+                imgContainer.dataset.filename = filename;
+                // Use the index within the *filtered* group for lightbox/fullscreen
+                imgContainer.dataset.index = index;
+
+                // Add parameter info as a tooltip (title attribute)
+                const params = folderParameters[item.folder];
+                if (params) {
+                    let paramParts = [];
+                    if (params.seed !== undefined) {
+                        paramParts.push(`Seed: ${params.seed}`);
+                    }
+                    paramParts.push(`Personality: ${params.usePersonality ? '✅' : '❌'}`);
+                    let memoryPart = `Memory: ${params.useMemory ? '✅' : '❌'}`;
+                    if (params.useMemory && params.memoryLength !== undefined) {
+                        memoryPart += ` [Len: ${params.memoryLength}]`; // Corrected display name
+                    }
+                    paramParts.push(memoryPart);
+                    imgContainer.title = `Parameters (${item.folder}):\n${paramParts.join('\n')}`; // Set title attribute for hover tooltip
+                }
+
+                const img = document.createElement('img');
+                img.src = item.dataUrl;
+                img.alt = `${item.relativePath}`;
+                img.onerror = () => {
+                    console.error(`Error loading image: ${item.folder}/${item.relativePath}`);
+                    img.src = `https://placehold.co/200x200/e5e7eb/9ca3af?text=LoadError`;
+                    img.alt = `Error loading ${item.relativePath}`;
+                };
+                img.loading = 'lazy';
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'info';
+                const folderNamePara = document.createElement('p');
+                folderNamePara.className = 'folder-name';
+                folderNamePara.textContent = item.folder;
+
+                infoDiv.appendChild(folderNamePara);
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(infoDiv);
+                fileGrid.appendChild(imgContainer);
+            });
+            gridContainer.appendChild(fileGrid);
+        }
+    });
+
+    // 4. Display message if no groups are shown after filtering
+    if (displayedGroupsCount === 0 && droppedFolders.size > 0) {
+        gridContainer.innerHTML = '<p class="text-gray-500 text-center">フィルターに一致する画像グループはありません。フィルター条件を変更するか、フォルダ一覧からフォルダを削除してください。</p>';
+    } else if (droppedFolders.size === 0) {
+        // Keep grid empty if no folders were ever dropped
         gridContainer.innerHTML = '';
-        return;
     }
 
-    sortedFilenames.forEach(filename => {
-        const group = imageGroups[filename];
-        if (!group || group.length === 0) return;
-
-        console.log(`Rendering group for filename: ${filename}`, group);
-
-        // Create container for header and toggle button
-        const headerContainer = document.createElement('div');
-        headerContainer.className = 'filename-header-container';
-
-        const filenameHeader = document.createElement('h2');
-        filenameHeader.className = 'filename-header cursor-pointer';
-        filenameHeader.textContent = filename;
-        filenameHeader.dataset.filename = filename;
-
-        // Create toggle button
-        const toggleButton = document.createElement('button');
-        toggleButton.className = 'toggle-group-button';
-        toggleButton.textContent = '-'; // Default to expanded
-        toggleButton.dataset.filename = filename;
-        toggleButton.setAttribute('aria-label', `グループ ${filename} を隠す`);
-        toggleButton.dataset.expanded = 'true'; // Track state
-
-        headerContainer.appendChild(filenameHeader);
-        headerContainer.appendChild(toggleButton);
-        gridContainer.appendChild(headerContainer);
-
-        const fileGrid = document.createElement('div');
-        fileGrid.dataset.gridFilename = filename;
-        const numColumns = Math.min(group.length, 6);
-        fileGrid.className = `file-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${numColumns} gap-4`;
-
-        const sortedGroup = group.sort((a, b) => {
-            const folderCompare = a.folder.localeCompare(b.folder);
-            return folderCompare !== 0 ? folderCompare : a.relativePath.localeCompare(b.relativePath);
-        });
-
-        sortedGroup.forEach((item, index) => {
-            console.log(`Creating image element for: ${item.folder}/${item.relativePath}`);
-            const imgContainer = document.createElement('div');
-            imgContainer.className = 'image-item';
-            imgContainer.dataset.filename = filename;
-            imgContainer.dataset.index = index;
-
-            // Add parameter info as a tooltip (title attribute)
-            const params = folderParameters[item.folder];
-            if (params) {
-                let paramParts = [];
-                if (params.seed !== undefined) {
-                    paramParts.push(`Seed: ${params.seed}`);
-                }
-                paramParts.push(`Personality: ${params.usePersonality ? '✅' : '❌'}`);
-                let memoryPart = `Memory: ${params.useMemory ? '✅' : '❌'}`;
-                if (params.useMemory && params.memoryLength !== undefined) {
-                    memoryPart += ` [Length: ${params.memoryLength}]`;
-                }
-                paramParts.push(memoryPart);
-                imgContainer.title = `Parameters (${item.folder}):\n${paramParts.join('\n')}`; // Set title attribute for hover tooltip
-            }
-
-            const img = document.createElement('img');
-            img.src = item.dataUrl;
-            img.alt = `${item.relativePath}`;
-            img.onerror = () => {
-                console.error(`Error loading image: ${item.folder}/${item.relativePath}`);
-                img.src = `https://placehold.co/200x200/e5e7eb/9ca3af?text=LoadError`;
-                img.alt = `Error loading ${item.relativePath}`;
-            };
-            img.loading = 'lazy';
-
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'info';
-            const folderNamePara = document.createElement('p');
-            folderNamePara.className = 'folder-name';
-            folderNamePara.textContent = item.folder;
-
-            infoDiv.appendChild(folderNamePara);
-            imgContainer.appendChild(img);
-            imgContainer.appendChild(infoDiv);
-            fileGrid.appendChild(imgContainer);
-        });
-        gridContainer.appendChild(fileGrid);
-    });
-    console.log("Grid rendering complete.");
+    console.log("Grid rendering complete with filters applied.");
 }
 
 /**
@@ -400,7 +472,21 @@ function resetGrid() {
 }
 
 /**
- * Renders the list of processed folders with parameters in columns.
+ * Resets the filter inputs and state, then re-renders the list.
+ */
+function resetFilters() {
+    filterSeedInput.value = '';
+    filterPersonalitySelect.value = '';
+    filterMemorySelect.value = '';
+    filterMemoryLengthInput.value = ''; // 追加
+    currentFilters = { seed: '', personality: '', memory: '', memoryLength: '' }; // memoryLength を追加
+    console.log("Filters reset");
+    renderFolderList(); // Re-render with no filters
+    renderGrid(); // Re-render grid with no filters
+}
+
+/**
+ * Renders the list of processed folders, applying current filters.
  */
 function renderFolderList() {
     folderList.innerHTML = '';
@@ -416,64 +502,104 @@ function renderFolderList() {
 
     const sortedFolderNames = Array.from(droppedFolders).sort();
 
-    sortedFolderNames.forEach(folderName => {
-        const li = document.createElement('li');
-
-        const nameContainer = document.createElement('span');
-        nameContainer.className = 'folder-name-container';
-        nameContainer.textContent = folderName;
-
-        // Container for parameters (right side)
-        const paramsContainer = document.createElement('span');
-        paramsContainer.className = 'folder-params'; // Container for flex layout
-
+    // Apply filters
+    const filteredFolderNames = sortedFolderNames.filter(folderName => {
         const params = folderParameters[folderName];
-        if (params) {
-            // Create individual spans for each parameter part
-            if (params.seed !== undefined) {
-                const seedSpan = document.createElement('span');
-                seedSpan.className = 'param-part seed-param';
-                seedSpan.textContent = `Seed: ${params.seed}`;
-                paramsContainer.appendChild(seedSpan);
-            } else {
-                 // Add an empty placeholder span to maintain alignment if seed is missing
-                 const seedSpan = document.createElement('span');
-                 seedSpan.className = 'param-part seed-param';
-                 seedSpan.innerHTML = '&nbsp;'; // Non-breaking space or leave empty
-                 paramsContainer.appendChild(seedSpan);
-            }
 
+        // SEED filter (matches if input is empty or seed includes the input string)
+        const seedFilterMatch = currentFilters.seed === '' || (params && params.seed !== undefined && String(params.seed).includes(currentFilters.seed));
+
+        // Personality filter (matches if filter is empty, or param exists and matches boolean value)
+        const personalityFilterMatch = currentFilters.personality === '' || (params && String(params.usePersonality) === currentFilters.personality);
+
+        // Memory filter (matches if filter is empty, or param exists and matches boolean value)
+        const memoryFilterMatch = currentFilters.memory === '' || (params && String(params.useMemory) === currentFilters.memory);
+
+        // Memory Length filter (追加)
+        // - フィルター入力が空なら常に true
+        // - 入力がある場合:
+        //   - params が存在し、useMemory が true であること
+        //   - params.memoryLength が存在し、フィルター入力値と一致すること (文字列比較)
+        const memoryLengthFilterMatch = currentFilters.memoryLength === '' ||
+            (params && params.useMemory === true && params.memoryLength !== undefined && String(params.memoryLength) === currentFilters.memoryLength);
+
+
+        return seedFilterMatch && personalityFilterMatch && memoryFilterMatch && memoryLengthFilterMatch; // memoryLengthFilterMatch を追加
+    });
+
+    if (filteredFolderNames.length === 0 && sortedFolderNames.length > 0) {
+        // Show message if filters result in no matches, but folders exist
+        const li = document.createElement('li');
+        li.textContent = 'フィルターに一致するフォルダはありません。';
+        li.className = 'text-gray-500 italic';
+        folderList.appendChild(li);
+    } else {
+        filteredFolderNames.forEach(folderName => {
+            const li = document.createElement('li');
+
+            const nameContainer = document.createElement('span');
+            nameContainer.className = 'folder-name-container';
+            nameContainer.textContent = folderName;
+
+            const paramsContainer = document.createElement('span');
+            paramsContainer.className = 'folder-params';
+
+            const params = folderParameters[folderName];
+            if (params) {
+            // Seed パラメータ
+            const seedSpan = document.createElement('span');
+            seedSpan.className = 'param-part seed-param';
+            if (params.seed !== undefined) {
+                seedSpan.textContent = `Seed: ${params.seed}`;
+            } else {
+                seedSpan.innerHTML = '&nbsp;'; // Seedがない場合はスペースで位置を合わせる
+            }
+            paramsContainer.appendChild(seedSpan);
+
+            // Personality パラメータ
             const personaSpan = document.createElement('span');
             personaSpan.className = 'param-part persona-param';
             personaSpan.textContent = `P: ${params.usePersonality ? '✅' : '❌'}`;
             paramsContainer.appendChild(personaSpan);
 
+            // Memory パラメータ
             const memorySpan = document.createElement('span');
             memorySpan.className = 'param-part memory-param';
-            let memoryText = `M: ${params.useMemory ? '✅' : '❌'}`;
-            if (params.useMemory && params.memoryLength !== undefined) {
-                memoryText += ` [Len: ${params.memoryLength}]`;
-            }
-            memorySpan.textContent = memoryText;
+            memorySpan.textContent = `M: ${params.useMemory ? '✅' : '❌'}`;
             paramsContainer.appendChild(memorySpan);
 
-        } else {
-            paramsContainer.textContent = '-'; // Placeholder if no params object exists
-        }
+            // Memory Length パラメータ (修正: 表示名を Len に、表示条件を調整)
+            const LengthSpan = document.createElement('span');
+            LengthSpan.className = 'param-part length-param';
+            // useMemory が true で memoryLength が定義されている場合のみ表示、それ以外は '-'
+            LengthSpan.textContent = `Len: ${params.useMemory && params.memoryLength !== undefined ? params.memoryLength : '-'}`;
+            paramsContainer.appendChild(LengthSpan);
 
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'delete-folder-button';
-        deleteButton.textContent = '削除';
-        deleteButton.dataset.folderName = folderName;
-        deleteButton.setAttribute('aria-label', `${folderName} フォルダを削除`);
 
-        li.appendChild(nameContainer);
-        li.appendChild(paramsContainer);
-        li.appendChild(deleteButton);
-        folderList.appendChild(li);
-    });
-    console.log("Folder list rendered:", sortedFolderNames);
-    console.log("Folder parameters:", folderParameters);
+            } else {
+            // パラメータファイルがない場合
+            // レイアウト維持のため、空のspanを追加
+            const seedSpan = document.createElement('span'); seedSpan.className = 'param-part seed-param'; seedSpan.innerHTML = '&nbsp;'; paramsContainer.appendChild(seedSpan);
+            const personaSpan = document.createElement('span'); personaSpan.className = 'param-part persona-param'; personaSpan.innerHTML = '&nbsp;'; paramsContainer.appendChild(personaSpan);
+            const memorySpan = document.createElement('span'); memorySpan.className = 'param-part memory-param'; memorySpan.innerHTML = '&nbsp;'; paramsContainer.appendChild(memorySpan);
+            const lengthSpan = document.createElement('span'); lengthSpan.className = 'param-part length-param'; lengthSpan.innerHTML = '&nbsp;'; paramsContainer.appendChild(lengthSpan); // Length 用も追加
+            }
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'delete-folder-button';
+            deleteButton.textContent = '削除';
+            deleteButton.dataset.folderName = folderName;
+            deleteButton.setAttribute('aria-label', `${folderName} フォルダを削除`);
+
+            li.appendChild(nameContainer);
+            li.appendChild(paramsContainer);
+            li.appendChild(deleteButton);
+            folderList.appendChild(li);
+        });
+    }
+
+    console.log("Folder list rendered with filters:", currentFilters);
+    console.log("Displayed folders:", filteredFolderNames);
 }
 
 /**
@@ -508,7 +634,7 @@ function removeFolder(folderName) {
         console.log(`Removed empty image group: ${filename}`);
     });
 
-    // 4. Re-render the grid and folder list
+    // Re-render the grid and folder list which will apply filters
     renderGrid();
     renderFolderList();
 
@@ -521,18 +647,20 @@ function removeFolder(folderName) {
 // --- ライトボックス関数 ---
 
 function openLightbox(filename, index) {
-    if (!imageGroups[filename] || index < 0 || index >= imageGroups[filename].length) {
-        console.error("Invalid filename or index for lightbox:", filename, index);
+    // Use the temporarily stored filtered group for the lightbox
+    const groupToShow = window.tempFilteredGroups ? window.tempFilteredGroups[filename] : null;
+
+    if (!groupToShow || index < 0 || index >= groupToShow.length) {
+        console.error("Invalid filename or index for lightbox (using filtered group):", filename, index, groupToShow);
+        // Fallback or error handling - maybe try original group?
+        // For now, just log and return
         return;
     }
 
-    currentLightboxGroup = [...imageGroups[filename]].sort((a, b) => {
-        const folderCompare = a.folder.localeCompare(b.folder);
-        return folderCompare !== 0 ? folderCompare : a.relativePath.localeCompare(b.relativePath);
-    });
-
+    // No need to re-sort, it was sorted in renderGrid
+    currentLightboxGroup = groupToShow;
     currentLightboxIndex = index;
-    console.log(`Opening lightbox for: ${filename}, index: ${index}`);
+    console.log(`Opening lightbox for filtered group: ${filename}, index: ${index}`);
 
     updateLightboxContent();
 
@@ -622,19 +750,19 @@ function handleLightboxKeys(e) {
  * @param {string} filename - The filename group to display.
  */
 function openFullScreenView(filename) {
-    if (!imageGroups[filename] || imageGroups[filename].length === 0) {
-        console.warn(`No images found for fullscreen view: ${filename}`);
+    // Use the temporarily stored filtered group for the fullscreen view
+    const groupToShow = window.tempFilteredGroups ? window.tempFilteredGroups[filename] : null;
+
+    if (!groupToShow || groupToShow.length === 0) {
+        console.warn(`No images found for fullscreen view (using filtered group): ${filename}`);
         return;
     }
-    console.log(`Opening fullscreen view for: ${filename}`);
+    console.log(`Opening fullscreen view for filtered group: ${filename}`);
 
     fullscreenGrid.innerHTML = ''; // Clear previous content
 
-    // Sort the group consistently
-    const sortedGroup = [...imageGroups[filename]].sort((a, b) => {
-        const folderCompare = a.folder.localeCompare(b.folder);
-        return folderCompare !== 0 ? folderCompare : a.relativePath.localeCompare(b.relativePath);
-    });
+    // No need to re-sort, it was sorted in renderGrid
+    const sortedGroup = groupToShow;
 
     // Populate the fullscreen grid
     sortedGroup.forEach((item, index) => {
@@ -642,7 +770,8 @@ function openFullScreenView(filename) {
         const imgContainer = document.createElement('div');
         imgContainer.className = 'image-item'; // Reuse class
         imgContainer.dataset.filename = filename; // Data for lightbox
-        imgContainer.dataset.index = index;     // Data for lightbox
+        // Use the index within the *filtered* group
+        imgContainer.dataset.index = index;
 
         const img = document.createElement('img');
         img.src = item.dataUrl;
@@ -670,7 +799,7 @@ function openFullScreenView(filename) {
             paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
             let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
             if (params.useMemory && params.memoryLength !== undefined) {
-                memoryPart += ` [Len: ${params.memoryLength}]`;
+                memoryPart += ` [Len: ${params.memoryLength}]`; // Corrected display name
             }
             paramParts.push(memoryPart);
             // Append parameters to the folder name string
@@ -687,12 +816,22 @@ function openFullScreenView(filename) {
 
     // Initialize SortableJS on the fullscreen grid
     if (typeof Sortable !== 'undefined') {
+        // Destroy previous instance if exists
+        if (currentSortableInstance) {
+            currentSortableInstance.destroy();
+        }
         currentSortableInstance = new Sortable(fullscreenGrid, {
             animation: 150, // ms, animation speed moving items when sorting, `0` — without animation
             ghostClass: 'sortable-ghost', // Class name for the drop placeholder
             chosenClass: 'sortable-chosen', // Class name for the chosen item
             // Note: This sorting only affects the DOM within fullscreen view,
-            // it does not update the underlying imageGroups data.
+            // it does not update the underlying imageGroups data or the filtered data.
+            onEnd: function (/**Event*/evt) {
+                // Optional: If you need to update the lightbox index after sorting
+                // you might need to re-map the indices here, but it adds complexity.
+                // For now, sorting is purely visual within fullscreen.
+                console.log('Sort ended. Item moved from', evt.oldIndex, 'to', evt.newIndex);
+            },
         });
         console.log("SortableJS initialized for fullscreen view.");
     } else {
