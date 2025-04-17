@@ -20,6 +20,8 @@ const filterPersonalitySelect = document.getElementById('filter-personality');
 const filterMemorySelect = document.getElementById('filter-memory');
 const filterMemoryLengthInput = document.getElementById('filter-memory-length'); // 追加
 const resetFilterButton = document.getElementById('reset-filter-button');
+const toggleFolderListButton = document.getElementById('toggle-folder-list-button'); // 追加
+const toggleGridParamsCheckbox = document.getElementById('toggle-grid-params'); // 追加
 let currentSortableInstance = null; // To hold the Sortable instance
 
 // { filename: [{ folder: string, relativePath: string, file: File, dataUrl: string }] }
@@ -36,6 +38,11 @@ let currentFilters = {
     memory: '',       // '', 'true', 'false'
     memoryLength: '' // 追加 (数値または空文字)
 };
+
+// 追加: グリッドパラメータ表示状態
+let showGridParams = false;
+// 追加: 選択中のフォルダ名
+let selectedFolderName = null;
 
 // ライトボックス用状態変数
 let currentLightboxGroup = []; // 現在ライトボックスで表示中のファイル名グループ
@@ -95,10 +102,57 @@ gridContainer.addEventListener('click', (e) => {
 
 // Folder list delete button listener (event delegation)
 folderList.addEventListener('click', (e) => {
-    if (e.target.classList.contains('delete-folder-button')) {
-        const folderName = e.target.dataset.folderName;
+    const deleteButton = e.target.closest('.delete-folder-button');
+    const folderNameContainer = e.target.closest('.folder-name-container');
+
+    if (deleteButton) {
+        const folderName = deleteButton.dataset.folderName;
         if (folderName) {
             removeFolder(folderName);
+        }
+    } else if (folderNameContainer) { // フォルダ名クリック時の処理を追加
+        const folderName = folderNameContainer.dataset.folderName;
+        if (folderName) {
+            if (selectedFolderName === folderName) {
+                // Already selected, deselect
+                selectedFolderName = null;
+                console.log("Folder deselected:", folderName);
+            } else {
+                // Select new folder
+                selectedFolderName = folderName;
+                console.log("Folder selected:", folderName);
+            }
+            renderFolderList(); // Update list highlighting
+            renderGrid(); // Update grid view
+        }
+    }
+});
+
+// 追加: Folder list toggle button listener
+toggleFolderListButton.addEventListener('click', () => {
+    const isCollapsed = folderList.classList.toggle('folder-list-collapsed');
+    if (isCollapsed) {
+        toggleFolderListButton.textContent = '[+]';
+        toggleFolderListButton.setAttribute('aria-label', 'フォルダ一覧を全表示');
+        console.log("Folder list collapsed");
+    } else {
+        toggleFolderListButton.textContent = '[-]';
+        toggleFolderListButton.setAttribute('aria-label', 'フォルダ一覧を一部表示');
+        console.log("Folder list expanded");
+    }
+});
+
+// 追加: Grid parameter toggle checkbox listener
+toggleGridParamsCheckbox.addEventListener('change', () => {
+    showGridParams = toggleGridParamsCheckbox.checked;
+    console.log(`Grid parameter visibility toggled: ${showGridParams}`);
+    renderGrid(); // Re-render grid with new setting
+    // If fullscreen is open, re-render it too (optional, but good for consistency)
+    if (document.body.classList.contains('fullscreen-open')) {
+        const currentFullscreenFilename = fullscreenGrid.querySelector('.image-item')?.dataset.filename;
+        if (currentFullscreenFilename) {
+            // Re-open fullscreen view to apply changes; might cause a flicker
+            openFullScreenView(currentFullscreenFilename);
         }
     }
 });
@@ -306,9 +360,18 @@ function renderGrid() {
     console.log("Rendering grid...");
     gridContainer.innerHTML = '';
 
-    // 1. Filter the folders based on currentFilters (same logic as renderFolderList)
-    const sortedFolderNames = Array.from(droppedFolders).sort();
-    const filteredFolderNames = sortedFolderNames.filter(folderName => {
+    // 1. Filter the folders based on selectedFolderName and currentFilters
+    let folderNamesToDisplay = [];
+    if (selectedFolderName && droppedFolders.has(selectedFolderName)) {
+        // If a folder is selected, start with only that folder
+        folderNamesToDisplay = [selectedFolderName];
+    } else {
+        // Otherwise, start with all dropped folders
+        folderNamesToDisplay = Array.from(droppedFolders).sort();
+    }
+
+    // Apply parameter filters (currentFilters) to the folders determined above
+    const filteredFolderNames = folderNamesToDisplay.filter(folderName => {
         const params = folderParameters[folderName];
         const seedFilterMatch = currentFilters.seed === '' || (params && params.seed !== undefined && String(params.seed).includes(currentFilters.seed));
         const personalityFilterMatch = currentFilters.personality === '' || (params && String(params.usePersonality) === currentFilters.personality);
@@ -416,8 +479,25 @@ function renderGrid() {
                 const folderNamePara = document.createElement('p');
                 folderNamePara.className = 'folder-name';
                 folderNamePara.textContent = item.folder;
-
                 infoDiv.appendChild(folderNamePara);
+
+                // 追加: パラメータ表示切り替え
+                if (showGridParams) {
+                    if (params) {
+                        const paramsPara = document.createElement('p');
+                        paramsPara.className = 'grid-item-params text-xs text-gray-500 mt-1'; // Add styling classes
+                        let paramParts = [];
+                        if (params.seed !== undefined) paramParts.push(`S: ${params.seed}`);
+                        paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
+                        let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
+                        // Corrected Len display in grid
+                        if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [L: ${params.memoryLength}]`;
+                        paramParts.push(memoryPart);
+                        paramsPara.textContent = paramParts.join(' / '); // Use '/' as separator for grid
+                        infoDiv.appendChild(paramsPara);
+                    }
+                }
+
                 imgContainer.appendChild(img);
                 imgContainer.appendChild(infoDiv);
                 fileGrid.appendChild(imgContainer);
@@ -428,7 +508,12 @@ function renderGrid() {
 
     // 4. Display message if no groups are shown after filtering
     if (displayedGroupsCount === 0 && droppedFolders.size > 0) {
-        gridContainer.innerHTML = '<p class="text-gray-500 text-center">フィルターに一致する画像グループはありません。フィルター条件を変更するか、フォルダ一覧からフォルダを削除してください。</p>';
+        let message = "フィルターに一致する画像グループはありません。";
+        if (selectedFolderName) {
+            message += ` (フォルダ '${selectedFolderName}' 内)`;
+        }
+        message += " フィルター条件を変更するか、フォルダの選択を解除してください。";
+        gridContainer.innerHTML = `<p class="text-gray-500 text-center">${message}</p>`;
     } else if (droppedFolders.size === 0) {
         // Keep grid empty if no folders were ever dropped
         gridContainer.innerHTML = '';
@@ -480,9 +565,10 @@ function resetFilters() {
     filterMemorySelect.value = '';
     filterMemoryLengthInput.value = ''; // 追加
     currentFilters = { seed: '', personality: '', memory: '', memoryLength: '' }; // memoryLength を追加
-    console.log("Filters reset");
-    renderFolderList(); // Re-render with no filters
-    renderGrid(); // Re-render grid with no filters
+    selectedFolderName = null; // Reset selected folder as well
+    console.log("Filters and folder selection reset");
+    renderFolderList(); // Re-render with no filters/selection
+    renderGrid(); // Re-render grid with no filters/selection
 }
 
 /**
@@ -494,11 +580,16 @@ function renderFolderList() {
     if (droppedFolders.size === 0) {
         folderListSection.classList.add('hidden');
         clearButton.classList.add('hidden');
+        toggleFolderListButton.classList.add('hidden'); // Hide toggle button when no folders
+        folderList.classList.add('folder-list-collapsed'); // Ensure list is collapsed when empty
+        toggleFolderListButton.textContent = '[+]'; // Reset button text
+        toggleFolderListButton.setAttribute('aria-label', 'フォルダ一覧を全表示');
         return;
     }
 
     folderListSection.classList.remove('hidden');
     clearButton.classList.remove('hidden');
+    toggleFolderListButton.classList.remove('hidden'); // Show toggle button when folders exist
 
     const sortedFolderNames = Array.from(droppedFolders).sort();
 
@@ -536,10 +627,15 @@ function renderFolderList() {
     } else {
         filteredFolderNames.forEach(folderName => {
             const li = document.createElement('li');
+            // Add selected class if this folder is the selected one
+            if (folderName === selectedFolderName) {
+                li.classList.add('selected-folder');
+            }
 
             const nameContainer = document.createElement('span');
             nameContainer.className = 'folder-name-container';
             nameContainer.textContent = folderName;
+            nameContainer.dataset.folderName = folderName; // Add data attribute
 
             const paramsContainer = document.createElement('span');
             paramsContainer.className = 'folder-params';
@@ -633,6 +729,12 @@ function removeFolder(folderName) {
         delete imageGroups[filename];
         console.log(`Removed empty image group: ${filename}`);
     });
+
+    // If the removed folder was the selected one, reset selection
+    if (selectedFolderName === folderName) {
+        selectedFolderName = null;
+        console.log("Selected folder was removed, resetting selection.");
+    }
 
     // Re-render the grid and folder list which will apply filters
     renderGrid();
@@ -787,27 +889,26 @@ function openFullScreenView(filename) {
         infoDiv.className = 'info'; // Reuse class
         const folderNamePara = document.createElement('p');
         folderNamePara.className = 'folder-name';
-
-        // Display folder name and parameters next to it
-        let folderDisplayText = item.folder;
-        const params = folderParameters[item.folder];
-        if (params) {
-            let paramParts = [];
-            if (params.seed !== undefined) {
-                paramParts.push(`Seed: ${params.seed}`);
-            }
-            paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
-            let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
-            if (params.useMemory && params.memoryLength !== undefined) {
-                memoryPart += ` [Len: ${params.memoryLength}]`; // Corrected display name
-            }
-            paramParts.push(memoryPart);
-            // Append parameters to the folder name string
-            folderDisplayText += ` (${paramParts.join(', ')})`;
-        }
-        folderNamePara.textContent = folderDisplayText; // Set combined text
-
+        folderNamePara.textContent = item.folder; // Just the folder name first
         infoDiv.appendChild(folderNamePara);
+
+        // 追加/修正: フルスクリーンでもパラメータ表示切り替えを適用
+        if (showGridParams) {
+            const params = folderParameters[item.folder];
+            if (params) {
+                const paramsPara = document.createElement('p');
+                // Add styling classes for fullscreen params
+                paramsPara.className = 'grid-item-params fullscreen-item-params text-sm text-gray-600 mt-1';
+                let paramParts = [];
+                if (params.seed !== undefined) paramParts.push(`Seed: ${params.seed}`);
+                paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
+                let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
+                if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [Len: ${params.memoryLength}]`;
+                paramParts.push(memoryPart);
+                paramsPara.textContent = paramParts.join(', '); // Use ', ' as separator for fullscreen
+                infoDiv.appendChild(paramsPara);
+            }
+        }
 
         imgContainer.appendChild(img);
         imgContainer.appendChild(infoDiv);
@@ -861,6 +962,7 @@ function closeFullScreenView() {
 
 // --- 初期化 ---
 renderFolderList();
+// Initial state check for toggle button visibility is handled within renderFolderList now
 
 // --- ファイル/フォルダ処理関数の実装 ---
 

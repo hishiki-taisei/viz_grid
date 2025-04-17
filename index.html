@@ -36,7 +36,13 @@
 
         <!-- Added Folder List Section -->
         <div id="folder-list-section" class="mt-6 hidden">
-            <h3 class="text-lg font-semibold mb-2 text-gray-700">読み込み済みフォルダ:</h3>
+            <h3 class="text-lg font-semibold mb-2 text-gray-700 flex justify-between items-center">
+                <span>読み込み済みフォルダ:</span>
+                <!-- 追加: 表示切り替えボタン -->
+                <button id="toggle-folder-list-button" class="text-sm text-blue-600 hover:text-blue-800" aria-label="フォルダ一覧を全表示">
+                    [+]
+                </button>
+            </h3>
 
             <!-- Added Filter Controls -->
             <div id="folder-filter-controls" class="mb-4 p-3 bg-gray-100 rounded border border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -69,9 +75,15 @@
                  <button id="reset-filter-button" class="text-sm text-blue-600 hover:text-blue-800 underline ml-auto">フィルター解除</button>
             </div>
 
-            <ul id="folder-list" class="list-disc pl-5 space-y-1">
+            <ul id="folder-list" class="list-disc pl-5 space-y-1 folder-list-collapsed">
                 <!-- Folder items will be added here by JavaScript -->
             </ul>
+        </div>
+
+        <!-- 追加: グリッドパラメータ表示切り替え -->
+        <div class="mt-4 mb-2 flex items-center justify-end">
+            <input type="checkbox" id="toggle-grid-params" class="mr-2">
+            <label for="toggle-grid-params" class="text-sm text-gray-700 cursor-pointer">グリッドにパラメータを表示</label>
         </div>
 
         <div id="grid-container" class="mt-8">

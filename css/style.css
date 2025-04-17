@@ -362,6 +362,12 @@ body.fullscreen-open {
     flex-grow: 1; /* Allow name to take available space */
     word-break: break-all;
     margin-right: 1rem; /* Space between name and params */
+    cursor: pointer; /* Indicate folder name is clickable */
+    transition: color 0.2s ease;
+}
+
+#folder-list li:not(.selected-folder) .folder-name-container:hover {
+    color: #2563eb; /* Blue text on hover for non-selected items */
 }
 
 #folder-list .folder-params { /* Style for the parameter column container */
@@ -411,7 +417,26 @@ body.fullscreen-open {
     background-color: #dc2626; /* Darker red on hover */
 }
 
+/* Style for selected folder in the list */
+#folder-list li.selected-folder {
+    background-color: #e0f2fe; /* Light blue background */
+    font-weight: 600;
+}
+
 /* Hide helper class */
 .hidden {
     display: none;
+}
+
+/* Folder List Toggle */
+.folder-list-collapsed {
+    height: 10em; /* Adjust height to roughly fit 4 lines, might need tweaking */
+    overflow-y: auto; /* Enable vertical scroll if content exceeds height */
+    transition: height 0.3s ease-out; /* Transition height instead of max-height */
+}
+
+/* Style for when the list is expanded (no specific style needed if default is full height) */
+/* You might add a transition for smoothness when collapsing */
+#folder-list {
+    transition: height 0.3s ease-in;
 }
