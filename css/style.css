@@ -293,6 +293,62 @@ body.lightbox-open {
     background-color: #ffffff; /* Keep background for contain */
 }
 
+/* Style for HTML item links */
+.html-item {
+    /* Inherits base styles */
+    display: flex; /* Use flex to make the anchor fill the container */
+    flex-direction: column; /* Stack filename and info vertically */
+    text-decoration: none; /* Remove underline from the container */
+    color: inherit; /* Inherit text color */
+    height: 100%; /* Ensure it fills the grid cell height */
+    background-color: #f9fafb; /* Match base background */
+    border: 1px solid #e5e7eb; /* Keep border consistent */
+    border-radius: 0.5rem; /* Keep radius consistent */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Add transitions */
+}
+
+.html-item:hover {
+    border-color: #9ca3af; /* Darker border on hover */
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* Add shadow on hover */
+}
+
+.html-item .html-filename {
+    display: block; /* Change from flex to block */
+    width: 100%;
+    background-color: transparent; /* Remove white background */
+    color: #3b82f6; /* Blue link color */
+    text-decoration: underline; /* Underline the filename text */
+    font-weight: 600;
+    text-align: center;
+    padding: 1.5rem 1rem; /* Adjust padding */
+    box-sizing: border-box;
+    word-break: break-all;
+    transition: color 0.2s ease; /* Transition color */
+}
+
+.html-item:hover .html-filename {
+    color: #1d4ed8; /* Darker blue on hover */
+}
+
+/* Ensure info div is displayed correctly within the anchor */
+.html-item .info {
+    /* Styles inherited from .grid-item-base .info */
+    flex-grow: 1;
+    background-color: #f3f4f6; /* Keep info background consistent */
+    border-top: 1px solid #e5e7eb; /* Keep border consistent */
+}
+
+.fullscreen-grid .html-item {
+    background-color: #ffffff; /* Maybe keep white background in fullscreen */
+}
+
+.fullscreen-grid .html-item .html-filename {
+    height: auto; /* Allow natural height in fullscreen */
+    min-height: 50px; /* Ensure minimum clickable area */
+    font-size: 1rem;
+    padding: 1rem; /* Adjust padding for fullscreen */
+}
+
 /* Background scroll lock for fullscreen view */
 body.fullscreen-open {
     overflow: hidden;

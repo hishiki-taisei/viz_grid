@@ -22,6 +22,7 @@ const filterMemoryLengthInput = document.getElementById('filter-memory-length');
 const resetFilterButton = document.getElementById('reset-filter-button');
 const toggleFolderListButton = document.getElementById('toggle-folder-list-button'); // 追加
 const toggleGridParamsCheckbox = document.getElementById('toggle-grid-params'); // 追加
+const gridParamsToggleContainer = document.getElementById('grid-params-toggle-container'); // 追加
 let currentSortableInstance = null; // To hold the Sortable instance
 
 // { filename: [{ folder: string, relativePath: string, file: File, dataUrl: string }] }
@@ -72,18 +73,26 @@ lightbox.addEventListener('click', (e) => {
     }
 });
 
-// グリッド内の画像クリック、ヘッダークリック、トグルボタンクリック
+// グリッド内のクリックイベントリスナーを修正
 gridContainer.addEventListener('click', (e) => {
-    const imageItem = e.target.closest('.image-item');
+    // Find the closest ancestor which is either an image item or an html item link container
+    const itemElement = e.target.closest('.image-item, .html-item');
     const header = e.target.closest('.filename-header');
     const toggleButton = e.target.closest('.toggle-group-button');
 
-    if (imageItem) { // Handle image click for lightbox
-        const filename = imageItem.dataset.filename;
-        const index = parseInt(imageItem.dataset.index, 10);
-        console.log(`Grid image clicked: filename=${filename}, index=${index}`);
-        if (filename && !isNaN(index)) {
-            openLightbox(filename, index);
+    if (itemElement) {
+        // If it's an HTML item (which is an anchor tag itself), let the default action proceed.
+        if (itemElement.classList.contains('html-item')) {
+            console.log("HTML item link clicked, allowing default action.");
+            // No return needed, default browser behavior handles the link
+        } else if (itemElement.classList.contains('image-item')) {
+            // It's an image item, open lightbox
+            const filename = itemElement.dataset.filename;
+            const index = parseInt(itemElement.dataset.index, 10);
+            console.log(`Grid image clicked: filename=${filename}, index=${index}`);
+            if (filename && !isNaN(index)) {
+                openLightbox(filename, index);
+            }
         }
     } else if (header) { // Handle header click for fullscreen view
         const filename = header.dataset.filename;
@@ -286,7 +295,7 @@ async function handleFileInputChange(e) {
                 foldersData[folderName] = { files: [], hasBeenProcessed: droppedFolders.has(folderName) };
             }
             if (!foldersData[folderName].hasBeenProcessed) {
-                if (isImageFile(file)) {
+                if (isImageFile(file) || isHtmlFile(file)) {
                     file.processedRelativePath = relativePath;
                     foldersData[folderName].files.push(file);
                 }
@@ -351,6 +360,9 @@ function handleClear() {
     droppedFolders.clear();
     folderParameters = {}; // Clear parameters
     resetFilters(); // Reset filters as well
+    gridParamsToggleContainer.classList.add('hidden'); // Hide grid params toggle
+    toggleGridParamsCheckbox.checked = false; // Uncheck the box
+    showGridParams = false; // Reset state variable
     renderFolderList();
     console.log("Grid cleared");
 }
@@ -441,66 +453,85 @@ function renderGrid() {
             window.tempFilteredGroups[filename] = sortedFilteredGroup;
 
             sortedFilteredGroup.forEach((item, index) => {
-                console.log(`Creating image element for: ${item.folder}/${item.relativePath}`);
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'image-item';
-                imgContainer.dataset.filename = filename;
-                // Use the index within the *filtered* group for lightbox/fullscreen
-                imgContainer.dataset.index = index;
+                console.log(`Creating element for: ${item.folder}/${item.relativePath}, type: ${item.type}`);
+                let itemContainer;
 
-                // Add parameter info as a tooltip (title attribute)
-                const params = folderParameters[item.folder];
-                if (params) {
-                    let paramParts = [];
-                    if (params.seed !== undefined) {
-                        paramParts.push(`Seed: ${params.seed}`);
-                    }
-                    paramParts.push(`Personality: ${params.usePersonality ? '✅' : '❌'}`);
-                    let memoryPart = `Memory: ${params.useMemory ? '✅' : '❌'}`;
-                    if (params.useMemory && params.memoryLength !== undefined) {
-                        memoryPart += ` [Len: ${params.memoryLength}]`; // Corrected display name
-                    }
-                    paramParts.push(memoryPart);
-                    imgContainer.title = `Parameters (${item.folder}):\n${paramParts.join('\n')}`; // Set title attribute for hover tooltip
-                }
+                if (item.type === 'image') {
+                    itemContainer = document.createElement('div');
+                    itemContainer.classList.add('grid-item-base', 'image-item');
+                    itemContainer.dataset.filename = filename;
+                    itemContainer.dataset.index = index;
 
-                const img = document.createElement('img');
-                img.src = item.dataUrl;
-                img.alt = `${item.relativePath}`;
-                img.onerror = () => {
-                    console.error(`Error loading image: ${item.folder}/${item.relativePath}`);
-                    img.src = `https://placehold.co/200x200/e5e7eb/9ca3af?text=LoadError`;
-                    img.alt = `Error loading ${item.relativePath}`;
-                };
-                img.loading = 'lazy';
+                    const img = document.createElement('img');
+                    img.src = item.dataUrl;
+                    img.alt = `${item.relativePath}`;
+                    img.onerror = () => {
+                        console.error(`Error loading image: ${item.folder}/${item.relativePath}`);
+                        img.src = `https://placehold.co/200x200/e5e7eb/9ca3af?text=LoadError`;
+                        img.alt = `Error loading ${item.relativePath}`;
+                    };
+                    img.loading = 'lazy';
+                    itemContainer.appendChild(img);
 
-                const infoDiv = document.createElement('div');
-                infoDiv.className = 'info';
-                const folderNamePara = document.createElement('p');
-                folderNamePara.className = 'folder-name';
-                folderNamePara.textContent = item.folder;
-                infoDiv.appendChild(folderNamePara);
+                } else if (item.type === 'html') {
+                    itemContainer = document.createElement('a'); // Create anchor directly
+                    itemContainer.classList.add('grid-item-base', 'html-item');
+                    itemContainer.href = URL.createObjectURL(item.file);
+                    itemContainer.target = '_blank';
+                    itemContainer.rel = 'noopener noreferrer';
 
-                // 追加: パラメータ表示切り替え
-                if (showGridParams) {
+                    // Add filename text directly
+                    const fileNameSpan = document.createElement('span');
+                    fileNameSpan.className = 'html-filename';
+                    fileNameSpan.textContent = `📄 ${item.file.name}`;
+                    itemContainer.appendChild(fileNameSpan);
+
+                    // Add parameter info as a tooltip (title attribute) to the container
+                    const params = folderParameters[item.folder];
                     if (params) {
-                        const paramsPara = document.createElement('p');
-                        paramsPara.className = 'grid-item-params text-xs text-gray-500 mt-1'; // Add styling classes
                         let paramParts = [];
-                        if (params.seed !== undefined) paramParts.push(`S: ${params.seed}`);
-                        paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
-                        let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
-                        // Corrected Len display in grid
-                        if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [L: ${params.memoryLength}]`;
+                        if (params.seed !== undefined) {
+                            paramParts.push(`Seed: ${params.seed}`);
+                        }
+                        paramParts.push(`Personality: ${params.usePersonality ? '✅' : '❌'}`);
+                        let memoryPart = `Memory: ${params.useMemory ? '✅' : '❌'}`;
+                        if (params.useMemory && params.memoryLength !== undefined) {
+                            memoryPart += ` [Len: ${params.memoryLength}]`;
+                        }
                         paramParts.push(memoryPart);
-                        paramsPara.textContent = paramParts.join(' / '); // Use '/' as separator for grid
-                        infoDiv.appendChild(paramsPara);
+                        itemContainer.title = `Parameters (${item.folder}):\n${paramParts.join('\n')}`;
                     }
                 }
 
-                imgContainer.appendChild(img);
-                imgContainer.appendChild(infoDiv);
-                fileGrid.appendChild(imgContainer);
+                // Common setup for both types
+                if (itemContainer) { // Ensure container was created
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'info';
+                    const folderNamePara = document.createElement('p');
+                    folderNamePara.className = 'folder-name';
+                    folderNamePara.textContent = item.folder;
+                    infoDiv.appendChild(folderNamePara);
+
+                    // パラメータ表示切り替え (共通)
+                    if (showGridParams) {
+                        const params = folderParameters[item.folder];
+                        if (params) {
+                            const paramsPara = document.createElement('p');
+                            paramsPara.className = 'grid-item-params text-xs text-gray-500 mt-1';
+                            let paramParts = [];
+                            if (params.seed !== undefined) paramParts.push(`S: ${params.seed}`);
+                            paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
+                            let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
+                            if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [L: ${params.memoryLength}]`;
+                            paramParts.push(memoryPart);
+                            paramsPara.textContent = paramParts.join(' / ');
+                            infoDiv.appendChild(paramsPara);
+                        }
+                    }
+
+                    itemContainer.appendChild(infoDiv);
+                    fileGrid.appendChild(itemContainer);
+                }
             });
             gridContainer.appendChild(fileGrid);
         }
@@ -584,12 +615,14 @@ function renderFolderList() {
         folderList.classList.add('folder-list-collapsed'); // Ensure list is collapsed when empty
         toggleFolderListButton.textContent = '[+]'; // Reset button text
         toggleFolderListButton.setAttribute('aria-label', 'フォルダ一覧を全表示');
+        gridParamsToggleContainer.classList.add('hidden'); // Hide grid params toggle
         return;
     }
 
     folderListSection.classList.remove('hidden');
     clearButton.classList.remove('hidden');
     toggleFolderListButton.classList.remove('hidden'); // Show toggle button when folders exist
+    gridParamsToggleContainer.classList.remove('hidden'); // Show grid params toggle
 
     const sortedFolderNames = Array.from(droppedFolders).sort();
 
@@ -868,51 +901,67 @@ function openFullScreenView(filename) {
 
     // Populate the fullscreen grid
     sortedGroup.forEach((item, index) => {
-        // Reuse the image item creation logic (similar to renderGrid)
-        const imgContainer = document.createElement('div');
-        imgContainer.className = 'image-item'; // Reuse class
-        imgContainer.dataset.filename = filename; // Data for lightbox
-        // Use the index within the *filtered* group
-        imgContainer.dataset.index = index;
+        let itemContainer;
 
-        const img = document.createElement('img');
-        img.src = item.dataUrl;
-        img.alt = `${item.relativePath}`;
-        img.onerror = () => {
-            console.error(`Error loading image in fullscreen: ${item.folder}/${item.relativePath}`);
-            img.src = `https://placehold.co/400x350/e5e7eb/9ca3af?text=LoadError`; // Adjusted placeholder size
-            img.alt = `Error loading ${item.relativePath}`;
-        };
-        img.loading = 'lazy';
+        if (item.type === 'image') {
+            itemContainer = document.createElement('div');
+            itemContainer.classList.add('grid-item-base', 'image-item');
+            itemContainer.dataset.filename = filename;
+            itemContainer.dataset.index = index;
 
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'info'; // Reuse class
-        const folderNamePara = document.createElement('p');
-        folderNamePara.className = 'folder-name';
-        folderNamePara.textContent = item.folder; // Just the folder name first
-        infoDiv.appendChild(folderNamePara);
+            const img = document.createElement('img');
+            img.src = item.dataUrl;
+            img.alt = `${item.relativePath}`;
+            img.onerror = () => {
+                console.error(`Error loading image in fullscreen: ${item.folder}/${item.relativePath}`);
+                img.src = `https://placehold.co/400x350/e5e7eb/9ca3af?text=LoadError`; // Adjusted placeholder size
+                img.alt = `Error loading ${item.relativePath}`;
+            };
+            img.loading = 'lazy';
+            itemContainer.appendChild(img);
+        } else if (item.type === 'html') {
+            itemContainer = document.createElement('a'); // Create anchor directly
+            itemContainer.classList.add('grid-item-base', 'html-item');
+            itemContainer.href = URL.createObjectURL(item.file);
+            itemContainer.target = '_blank';
+            itemContainer.rel = 'noopener noreferrer';
 
-        // 追加/修正: フルスクリーンでもパラメータ表示切り替えを適用
-        if (showGridParams) {
-            const params = folderParameters[item.folder];
-            if (params) {
-                const paramsPara = document.createElement('p');
-                // Add styling classes for fullscreen params
-                paramsPara.className = 'grid-item-params fullscreen-item-params text-sm text-gray-600 mt-1';
-                let paramParts = [];
-                if (params.seed !== undefined) paramParts.push(`Seed: ${params.seed}`);
-                paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
-                let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
-                if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [Len: ${params.memoryLength}]`;
-                paramParts.push(memoryPart);
-                paramsPara.textContent = paramParts.join(', '); // Use ', ' as separator for fullscreen
-                infoDiv.appendChild(paramsPara);
-            }
+            // Add filename text directly
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.className = 'html-filename';
+            fileNameSpan.textContent = `📄 ${item.file.name}`;
+            itemContainer.appendChild(fileNameSpan);
         }
 
-        imgContainer.appendChild(img);
-        imgContainer.appendChild(infoDiv);
-        fullscreenGrid.appendChild(imgContainer);
+        // Common setup
+        if (itemContainer) {
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'info';
+            const folderNamePara = document.createElement('p');
+            folderNamePara.className = 'folder-name';
+            folderNamePara.textContent = item.folder;
+            infoDiv.appendChild(folderNamePara);
+
+            // フルスクリーンでもパラメータ表示切り替えを適用
+            if (showGridParams) {
+                const params = folderParameters[item.folder];
+                if (params) {
+                    const paramsPara = document.createElement('p');
+                    paramsPara.className = 'grid-item-params fullscreen-item-params text-sm text-gray-600 mt-1';
+                    let paramParts = [];
+                    if (params.seed !== undefined) paramParts.push(`Seed: ${params.seed}`);
+                    paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
+                    let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
+                    if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [Len: ${params.memoryLength}]`;
+                    paramParts.push(memoryPart);
+                    paramsPara.textContent = paramParts.join(', ');
+                    infoDiv.appendChild(paramsPara);
+                }
+            }
+
+            itemContainer.appendChild(infoDiv);
+            fullscreenGrid.appendChild(itemContainer);
+        }
     });
 
     // Initialize SortableJS on the fullscreen grid
@@ -1001,8 +1050,11 @@ async function processFileEntry(fileEntry, folderName, relativePath) {
     console.log(`Processing file entry: ${fileEntry.name} in folder: ${folderName}, path: ${relativePath}`);
     return new Promise((resolve, reject) => {
         fileEntry.file(async (file) => {
-            // Check if it's parameters.json at the top level of the processed folder
-            if (file.name === 'parameters.json' && relativePath === 'parameters.json') {
+            const filename = file.name;
+            const fullRelativePath = `${folderName}/${relativePath}`;
+
+            // Check if it's parameters.json at the top level
+            if (filename === 'parameters.json' && relativePath === 'parameters.json') {
                 console.log(`Found parameters.json for folder: ${folderName}`);
                 try {
                     const content = await file.text();
@@ -1019,37 +1071,47 @@ async function processFileEntry(fileEntry, folderName, relativePath) {
                     console.error(`Error reading or parsing parameters.json for ${folderName}:`, error);
                     reject(error); // Reject on parameter processing error
                 }
-            } else if (isImageFile(file)) { // Process image files as before
+            } else if (isImageFile(file)) { // Process image files
                 try {
                     const dataUrl = await readFileAsDataURL(file);
-                    const filename = file.name;
                     console.log(`Read image file: ${relativePath}`);
-
-                    if (!imageGroups[filename]) {
-                        imageGroups[filename] = [];
-                    }
-                    // Use folderName (top-level) and the full relativePath for uniqueness check
-                    if (!imageGroups[filename].some(item => item.folder === folderName && item.relativePath === `${folderName}/${relativePath}`)) {
-                         // Store the full relative path including the base folder
-                        const fullRelativePath = `${folderName}/${relativePath}`;
+                    if (!imageGroups[filename]) imageGroups[filename] = [];
+                    if (!imageGroups[filename].some(item => item.folder === folderName && item.relativePath === relativePath)) {
                         imageGroups[filename].push({
                             folder: folderName,
-                            // Store the path relative *within* the dropped folder for display consistency
                             relativePath: relativePath,
-                            file: file,
-                            dataUrl: dataUrl
+                            file: file, // Keep file object if needed later
+                            dataUrl: dataUrl,
+                            type: 'image' // Add type identifier
                         });
-                        console.log(`Added to imageGroups: ${filename} from ${fullRelativePath}`);
+                        console.log(`Added image to imageGroups: ${filename} from ${fullRelativePath}`);
                     } else {
-                        console.log(`Skipping duplicate: ${filename} from ${folderName}/${relativePath}`);
+                        console.log(`Skipping duplicate image: ${filename} from ${fullRelativePath}`);
                     }
                     resolve();
                 } catch (error) {
-                    console.error(`ファイル読み込みエラー (${file.name}):`, error);
+                    console.error(`ファイル読み込みエラー (${filename}):`, error);
                     reject(error);
                 }
+            } else if (isHtmlFile(file)) { // Process HTML files
+                console.log(`Found HTML file: ${relativePath}`);
+                if (!imageGroups[filename]) imageGroups[filename] = [];
+                // Store HTML file info (without dataUrl)
+                if (!imageGroups[filename].some(item => item.folder === folderName && item.relativePath === relativePath)) {
+                    imageGroups[filename].push({
+                        folder: folderName,
+                        relativePath: relativePath,
+                        file: file, // Store the file object to create URL later
+                        type: 'html' // Add type identifier
+                    });
+                    console.log(`Added HTML file to imageGroups: ${filename} from ${fullRelativePath}`);
+                } else {
+                    console.log(`Skipping duplicate HTML file: ${filename} from ${fullRelativePath}`);
+                }
+                resolve();
             } else {
-                resolve(); // Not an image or the target parameters.json
+                // Not an image, HTML, or parameters.json
+                resolve();
             }
         }, (error) => {
             console.error(`Fileオブジェクト取得エラー (${fileEntry.name}):`, error);
@@ -1091,10 +1153,13 @@ async function processFilesFromInput(folderName, files) {
         processingPromises.length = 0; // Clear promises array for image processing
     }
 
-    // Second pass: Process image files
+    // Second pass: Process image and HTML files
     for (const file of files) {
+        const filename = file.name;
+        const relativePath = file.webkitRelativePath;
+
         // Skip the parameters file itself
-        if (file.webkitRelativePath === `${folderName}/parameters.json`) {
+        if (relativePath === `${folderName}/parameters.json`) {
             continue;
         }
 
@@ -1102,27 +1167,38 @@ async function processFilesFromInput(folderName, files) {
             processingPromises.push((async () => {
                 try {
                     const dataUrl = await readFileAsDataURL(file);
-                    const filename = file.name;
-                    // Use the relative path provided by the input event
-                    const relativePath = file.webkitRelativePath;
                     console.log(`Read image file from input: ${relativePath}`);
-
-                    if (!imageGroups[filename]) { imageGroups[filename] = []; }
-                    // Check uniqueness based on folderName and full relativePath
+                    if (!imageGroups[filename]) imageGroups[filename] = [];
                     if (!imageGroups[filename].some(item => item.folder === folderName && item.relativePath === relativePath)) {
                         imageGroups[filename].push({
                             folder: folderName,
-                            // Store the full relative path from the input
                             relativePath: relativePath,
                             file: file,
-                            dataUrl: dataUrl
+                            dataUrl: dataUrl,
+                            type: 'image' // Add type
                         });
-                        console.log(`Added to imageGroups: ${filename} from ${relativePath}`);
+                        console.log(`Added image to imageGroups: ${filename} from ${relativePath}`);
                     } else {
-                        console.log(`Skipping duplicate: ${filename} from ${relativePath}`);
+                        console.log(`Skipping duplicate image: ${filename} from ${relativePath}`);
                     }
                 } catch (error) {
-                    console.error(`ファイル読み込みエラー (${file.name}):`, error);
+                    console.error(`ファイル読み込みエラー (${filename}):`, error);
+                }
+            })());
+        } else if (isHtmlFile(file)) {
+             processingPromises.push((async () => {
+                console.log(`Found HTML file from input: ${relativePath}`);
+                if (!imageGroups[filename]) imageGroups[filename] = [];
+                if (!imageGroups[filename].some(item => item.folder === folderName && item.relativePath === relativePath)) {
+                    imageGroups[filename].push({
+                        folder: folderName,
+                        relativePath: relativePath,
+                        file: file,
+                        type: 'html' // Add type
+                    });
+                    console.log(`Added HTML file to imageGroups: ${filename} from ${relativePath}`);
+                } else {
+                    console.log(`Skipping duplicate HTML file: ${filename} from ${relativePath}`);
                 }
             })());
         }
@@ -1131,6 +1207,11 @@ async function processFilesFromInput(folderName, files) {
 }
 
 function isImageFile(file) { return file.type.startsWith('image/'); }
+
+// 追加: HTMLファイル判定関数
+function isHtmlFile(file) {
+    return file.type === 'text/html' || file.name.toLowerCase().endsWith('.html') || file.name.toLowerCase().endsWith('.htm');
+}
 
 function readFileAsDataURL(file) {
     return new Promise((resolve, reject) => {
