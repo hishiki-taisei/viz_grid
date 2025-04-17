@@ -41,7 +41,7 @@ let currentFilters = {
 };
 
 // 追加: グリッドパラメータ表示状態
-let showGridParams = false;
+let showGridParams = true;
 // 追加: 選択中のフォルダ名
 let selectedFolderName = null;
 
@@ -414,6 +414,9 @@ function renderGrid() {
             displayedGroupsCount++;
             console.log(`Rendering filtered group for filename: ${filename}`, filteredGroup);
 
+            // Determine if the group contains only HTML files
+            const isHtmlOnlyGroup = filteredGroup.every(item => item.type === 'html');
+
             // Create container for header and toggle button
             const headerContainer = document.createElement('div');
             headerContainer.className = 'filename-header-container';
@@ -423,13 +426,20 @@ function renderGrid() {
             filenameHeader.textContent = filename;
             filenameHeader.dataset.filename = filename;
 
-            // Create toggle button
+            // Create toggle button - Set initial state based on content type
             const toggleButton = document.createElement('button');
             toggleButton.className = 'toggle-group-button';
-            toggleButton.textContent = '-'; // Default to expanded
+            if (isHtmlOnlyGroup) {
+                toggleButton.textContent = '+'; // Default to collapsed for HTML only
+                toggleButton.dataset.expanded = 'false';
+                toggleButton.setAttribute('aria-label', `グループ ${filename} を表示`);
+                console.log(`Group ${filename} is HTML only, defaulting to collapsed.`);
+            } else {
+                toggleButton.textContent = '-'; // Default to expanded for others
+                toggleButton.dataset.expanded = 'true';
+                toggleButton.setAttribute('aria-label', `グループ ${filename} を隠す`);
+            }
             toggleButton.dataset.filename = filename;
-            toggleButton.setAttribute('aria-label', `グループ ${filename} を隠す`);
-            toggleButton.dataset.expanded = 'true'; // Track state
 
             headerContainer.appendChild(filenameHeader);
             headerContainer.appendChild(toggleButton);
@@ -440,6 +450,11 @@ function renderGrid() {
             // Adjust columns based on the *filtered* group length
             const numColumns = Math.min(filteredGroup.length, 6);
             fileGrid.className = `file-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${numColumns} gap-4`;
+
+            // Add collapsed class if HTML only group
+            if (isHtmlOnlyGroup) {
+                fileGrid.classList.add('collapsed');
+            }
 
             // Sort the filtered group for consistent display order
             const sortedFilteredGroup = filteredGroup.sort((a, b) => {
