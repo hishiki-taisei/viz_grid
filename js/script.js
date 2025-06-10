@@ -15,6 +15,7 @@ const folderList = document.getElementById('folder-list');
 const fullscreenView = document.getElementById('fullscreen-view');
 const fullscreenGrid = document.getElementById('fullscreen-grid');
 const fullscreenClose = document.getElementById('fullscreen-close');
+const folderFilterControls = document.getElementById('folder-filter-controls'); // ▼ 追加
 const filterSeedInput = document.getElementById('filter-seed');
 const filterPersonalitySelect = document.getElementById('filter-personality');
 const filterMemorySelect = document.getElementById('filter-memory');
@@ -623,8 +624,10 @@ function resetFilters() {
 function renderFolderList() {
     folderList.innerHTML = '';
 
+    // ▼ START: Modified Section ▼
     if (droppedFolders.size === 0) {
         folderListSection.classList.add('hidden');
+        folderFilterControls.classList.add('hidden'); // Hide filter controls
         clearButton.classList.add('hidden');
         toggleFolderListButton.classList.add('hidden'); // Hide toggle button when no folders
         folderList.classList.add('folder-list-collapsed'); // Ensure list is collapsed when empty
@@ -635,9 +638,11 @@ function renderFolderList() {
     }
 
     folderListSection.classList.remove('hidden');
+    folderFilterControls.classList.remove('hidden'); // Show filter controls
     clearButton.classList.remove('hidden');
     toggleFolderListButton.classList.remove('hidden'); // Show toggle button when folders exist
     gridParamsToggleContainer.classList.remove('hidden'); // Show grid params toggle
+    // ▲ END: Modified Section ▲
 
     const sortedFolderNames = Array.from(droppedFolders).sort();
 

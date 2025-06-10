@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Viz Grid - 画像比較ツール</title>
-    <link rel="icon" href="viz_grid.png" type="image/png"> <!-- Add favicon link -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="css/style.css"> <!-- Link to external CSS -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" href="viz_grid.png" type="image/png"> <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css"> <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -20,32 +18,14 @@
             同名の画像ファイルがフォルダごとに並べて表示されます。画像をクリックすると拡大表示します。
         </p>
 
-        <div id="drop-zone" class="border-4 border-dashed border-gray-300 p-10 rounded-lg text-center cursor-pointer hover:border-blue-400 transition-colors duration-300 bg-gray-50">
-            <p class="text-gray-500">ここにフォルダをドラッグ＆ドロップ</p>
-            <p class="text-sm text-gray-400 mt-2">(画像ファイルが含まれるフォルダを選択してください)</p>
-            <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
-        </div>
+        <div id="sticky-controls-container" class="sticky top-0 z-30 bg-white/95 backdrop-blur-sm py-4 -mx-6 px-6 shadow-sm mb-4">
+            <div id="drop-zone" class="border-4 border-dashed border-gray-300 p-10 rounded-lg text-center cursor-pointer hover:border-blue-400 transition-colors duration-300 bg-gray-50">
+                <p class="text-gray-500">ここにフォルダをドラッグ＆ドロップ</p>
+                <p class="text-sm text-gray-400 mt-2">(画像ファイルが含まれるフォルダを選択してください)</p>
+                <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
+            </div>
 
-        <div id="message-area" class="mt-4 text-center text-blue-600"></div>
-
-        <div class="text-center mt-4">
-            <button id="clear-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow hidden">
-                表示をクリア
-            </button>
-        </div>
-
-        <!-- Added Folder List Section -->
-        <div id="folder-list-section" class="mt-6 hidden">
-            <h3 class="text-lg font-semibold mb-2 text-gray-700 flex justify-between items-center">
-                <span>読み込み済みフォルダ:</span>
-                <!-- 追加: 表示切り替えボタン -->
-                <button id="toggle-folder-list-button" class="text-sm text-blue-600 hover:text-blue-800" aria-label="フォルダ一覧を全表示">
-                    [+]
-                </button>
-            </h3>
-
-            <!-- Added Filter Controls -->
-            <div id="folder-filter-controls" class="mb-4 p-3 bg-gray-100 rounded border border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div id="folder-filter-controls" class="mt-4 p-3 bg-gray-100 rounded border border-gray-200 flex flex-wrap items-center gap-x-4 gap-y-2 hidden">
                 <span class="font-medium text-sm text-gray-600">フィルター:</span>
                 <div class="filter-group">
                     <label for="filter-seed" class="text-sm mr-1">SEED:</label>
@@ -67,23 +47,35 @@
                         <option value="false">❌ No</option>
                     </select>
                 </div>
-                <!-- 追加: Memory Length フィルター -->
                 <div class="filter-group flex items-center">
                     <label for="filter-memory-length" class="text-sm mr-1">Len:</label>
                     <input type="number" id="filter-memory-length" min="0" placeholder="e.g., 10" class="filter-input text-sm border border-gray-300 rounded px-2 py-1 w-20">
                 </div>
                  <button id="reset-filter-button" class="text-sm text-blue-600 hover:text-blue-800 underline ml-auto">フィルター解除</button>
             </div>
+        </div>
+        <div id="message-area" class="mt-4 text-center text-blue-600"></div>
 
-            <ul id="folder-list" class="list-disc pl-5 space-y-1 folder-list-collapsed">
-                <!-- Folder items will be added here by JavaScript -->
-            </ul>
+        <div class="text-center mt-4">
+            <button id="clear-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow hidden">
+                表示をクリア
+            </button>
         </div>
 
-        <!-- 追加: グリッドパラメータ表示切り替え (初期状態はhidden) -->
+        <div id="folder-list-section" class="mt-6 hidden">
+            <h3 class="text-lg font-semibold mb-2 text-gray-700 flex justify-between items-center">
+                <span>読み込み済みフォルダ:</span>
+                <button id="toggle-folder-list-button" class="text-sm text-blue-600 hover:text-blue-800" aria-label="フォルダ一覧を全表示">
+                    [+]
+                </button>
+            </h3>
+
+            <ul id="folder-list" class="list-disc pl-5 space-y-1 folder-list-collapsed">
+                </ul>
+        </div>
+
         <div id="grid-params-toggle-container" class="mt-4 mb-2 flex items-center justify-end hidden">
-            <input type="checkbox" id="toggle-grid-params" class="mr-2" checked> <!-- checked属性を追加 -->
-            <label for="toggle-grid-params" class="text-sm text-gray-700 cursor-pointer">グリッドにパラメータを表示</label>
+            <input type="checkbox" id="toggle-grid-params" class="mr-2" checked> <label for="toggle-grid-params" class="text-sm text-gray-700 cursor-pointer">グリッドにパラメータを表示</label>
         </div>
 
         <div id="grid-container" class="mt-8">
@@ -105,17 +97,12 @@
         </div>
     </div>
 
-    <!-- Added Fullscreen View Container -->
     <div id="fullscreen-view" class="fullscreen-view">
         <button id="fullscreen-close" class="fullscreen-close" aria-label="閉じる">&times;</button>
         <div id="fullscreen-grid" class="fullscreen-grid">
-            <!-- Fullscreen image grid will be generated here -->
-        </div>
+            </div>
     </div>
 
-    <!-- Add SortableJS library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <script src="js/script.js"></script> <!-- Link to external JavaScript -->
-
-</body>
+    <script src="js/script.js"></script> </body>
 </html>
