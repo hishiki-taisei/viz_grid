@@ -48,7 +48,7 @@ let selectedFolderName = null;
 
 // ライトボックス用状態変数
 let currentLightboxGroup = []; // 現在ライトボックスで表示中のファイル名グループ
-let currentLightboxIndex = -1; // グリッド表示では使用しないが、念のため残す
+let currentLightboxIndex = -1; // 現在表示中の画像のインデックス
 
 // --- イベントリスナー ---
 
@@ -76,19 +76,23 @@ lightbox.addEventListener('click', (e) => {
 
 // グリッド内のクリックイベントリスナーを修正
 gridContainer.addEventListener('click', (e) => {
+    // Find the closest ancestor which is either an image item or an html item link container
     const itemElement = e.target.closest('.image-item, .html-item');
     const header = e.target.closest('.filename-header');
     const toggleButton = e.target.closest('.toggle-group-button');
 
     if (itemElement) {
+        // If it's an HTML item (which is an anchor tag itself), let the default action proceed.
         if (itemElement.classList.contains('html-item')) {
             console.log("HTML item link clicked, allowing default action.");
+            // No return needed, default browser behavior handles the link
         } else if (itemElement.classList.contains('image-item')) {
+            // It's an image item, open lightbox
             const filename = itemElement.dataset.filename;
-            console.log(`Grid image clicked for lightbox: filename=${filename}`);
-            if (filename) {
-                // インデックスではなくファイル名を渡してグループ全体を開く
-                openLightbox(filename);
+            const index = parseInt(itemElement.dataset.index, 10);
+            console.log(`Grid image clicked: filename=${filename}, index=${index}`);
+            if (filename && !isNaN(index)) {
+                openLightbox(filename, index);
             }
         }
     } else if (header) { // Handle header click for fullscreen view
@@ -171,10 +175,10 @@ fullscreenGrid.addEventListener('click', (e) => {
     const imageItem = e.target.closest('.image-item');
     if (imageItem) {
         const filename = imageItem.dataset.filename;
-        console.log(`Fullscreen image clicked for lightbox: filename=${filename}`);
-        if (filename) {
-            // フルスクリーンビューからもグループ全体を開く
-            openLightbox(filename);
+        const index = parseInt(imageItem.dataset.index, 10);
+        console.log(`Fullscreen image clicked: filename=${filename}, index=${index}`);
+        if (filename && !isNaN(index)) {
+            openLightbox(filename, index);
         }
     }
 });
@@ -472,7 +476,7 @@ function renderGrid() {
                     itemContainer = document.createElement('div');
                     itemContainer.classList.add('grid-item-base', 'image-item');
                     itemContainer.dataset.filename = filename;
-                    itemContainer.dataset.index = index; // Keep index for fullscreen view logic
+                    itemContainer.dataset.index = index;
 
                     const img = document.createElement('img');
                     img.src = item.dataUrl;
@@ -793,91 +797,70 @@ function removeFolder(folderName) {
     console.log('Updated folderParameters:', folderParameters);
 }
 
-// --- ライトボックス関数 (変更後) ---
+// --- ライトボックス関数 ---
 
-function openLightbox(filename) {
+function openLightbox(filename, index) {
+    // Use the temporarily stored filtered group for the lightbox
     const groupToShow = window.tempFilteredGroups ? window.tempFilteredGroups[filename] : null;
 
-    if (!groupToShow || groupToShow.length === 0) {
-        console.error("Invalid filename or no images for lightbox (using filtered group):", filename, groupToShow);
+    if (!groupToShow || index < 0 || index >= groupToShow.length) {
+        console.error("Invalid filename or index for lightbox (using filtered group):", filename, index, groupToShow);
+        // Fallback or error handling - maybe try original group?
+        // For now, just log and return
         return;
     }
 
+    // No need to re-sort, it was sorted in renderGrid
     currentLightboxGroup = groupToShow;
-    currentLightboxIndex = 0; // Reset index
-    console.log(`Opening lightbox for filtered group: ${filename}`);
+    currentLightboxIndex = index;
+    console.log(`Opening lightbox for filtered group: ${filename}, index: ${index}`);
 
-    updateLightboxContent(filename);
+    updateLightboxContent();
 
     lightbox.classList.add('show');
     document.body.classList.add('lightbox-open');
     document.addEventListener('keydown', handleLightboxKeys);
 }
 
-function updateLightboxContent(filename) {
-    const imageContainer = lightbox.querySelector('.lightbox-image-container');
-    imageContainer.innerHTML = ''; // Clear previous content
-
-    if (currentLightboxGroup.length === 0) {
-        console.error("Lightbox group is empty.");
+function updateLightboxContent() {
+    if (currentLightboxIndex < 0 || currentLightboxIndex >= currentLightboxGroup.length) {
+        console.error("Invalid index in updateLightboxContent:", currentLightboxIndex);
         closeLightbox();
         return;
     }
 
-    // Create a 2-column grid of images with their info
-    currentLightboxGroup.forEach(item => {
-        const itemWrapper = document.createElement('div');
-        itemWrapper.className = 'lightbox-image-item';
+    const item = currentLightboxGroup[currentLightboxIndex];
+    lightboxImg.src = item.dataUrl;
+    lightboxImg.alt = item.relativePath;
 
-        const img = document.createElement('img');
-        img.src = item.dataUrl;
-        img.alt = item.relativePath;
-        img.onerror = () => {
-            console.error(`Error loading image in lightbox: ${item.folder}/${item.relativePath}`);
-            img.src = `https://placehold.co/400x300/e5e7eb/9ca3af?text=LoadError`;
-            img.alt = `Error loading ${item.relativePath}`;
-        };
-        img.loading = 'lazy';
-        itemWrapper.appendChild(img);
-
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'info';
-
-        const folderNamePara = document.createElement('p');
-        folderNamePara.className = 'folder-name';
-        folderNamePara.textContent = item.folder;
-        infoDiv.appendChild(folderNamePara);
-
-        const params = folderParameters[item.folder];
-        if (params) {
-            const paramsPara = document.createElement('p');
-            paramsPara.className = 'grid-item-params';
-            let paramParts = [];
-            if (params.seed !== undefined) paramParts.push(`S: ${params.seed}`);
-            paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
-            let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
-            if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [L: ${params.memoryLength}]`;
-            paramParts.push(memoryPart);
-            paramsPara.textContent = paramParts.join(' / ');
-            infoDiv.appendChild(paramsPara);
+    // Display folder name and parameters
+    const folderNameElement = lightboxInfo.querySelector('.folder-name');
+    let folderDisplayText = item.folder;
+    const params = folderParameters[item.folder];
+    if (params) {
+        let paramParts = [];
+        if (params.seed !== undefined) {
+            paramParts.push(`Seed: ${params.seed}`);
         }
-        itemWrapper.appendChild(infoDiv);
-        imageContainer.appendChild(itemWrapper);
-    });
-
-    // Update the main info area with the group's filename
-    const filenameElement = lightboxInfo.querySelector('.filename');
-    if (filenameElement) {
-        filenameElement.textContent = filename;
-    } else {
-        const newFilenameElement = document.createElement('p');
-        newFilenameElement.className = 'filename';
-        newFilenameElement.textContent = filename;
-        lightboxInfo.innerHTML = ''; // Clear old info
-        lightboxInfo.appendChild(newFilenameElement);
+        paramParts.push(`Persona: ${params.usePersonality ? '✅' : '❌'}`);
+        let memoryPart = `Memory: ${params.useMemory ? '✅' : '❌'}`;
+        if (params.useMemory && params.memoryLength !== undefined) {
+            memoryPart += ` [Len: ${params.memoryLength}]`;
+        }
+        paramParts.push(memoryPart);
+        folderDisplayText += ` (${paramParts.join(', ')})`; // Append parameters
     }
+    folderNameElement.textContent = folderDisplayText;
 
-    console.log(`Lightbox updated for group: ${filename}`);
+
+    // Display relative path
+    const pathParts = item.relativePath.split('/');
+    const displayPath = pathParts.length > 1 ? pathParts.slice(1).join('/') : '(ルート)';
+    lightboxInfo.querySelector('.relative-path').textContent = displayPath;
+
+    lightboxPrev.disabled = currentLightboxIndex === 0;
+    lightboxNext.disabled = currentLightboxIndex === currentLightboxGroup.length - 1;
+    console.log(`Lightbox updated to index: ${currentLightboxIndex}`);
 }
 
 function closeLightbox() {
@@ -890,15 +873,25 @@ function closeLightbox() {
 }
 
 function showPrevImage() {
-    // Not used in grid view
+    if (currentLightboxIndex > 0) {
+        currentLightboxIndex--;
+        updateLightboxContent();
+    }
 }
 
 function showNextImage() {
-    // Not used in grid view
+    if (currentLightboxIndex < currentLightboxGroup.length - 1) {
+        currentLightboxIndex++;
+        updateLightboxContent();
+    }
 }
 
 function handleLightboxKeys(e) {
-    if (e.key === 'Escape') {
+    if (e.key === 'ArrowLeft') {
+        showPrevImage();
+    } else if (e.key === 'ArrowRight') {
+        showNextImage();
+    } else if (e.key === 'Escape') {
         closeLightbox();
     }
 }
