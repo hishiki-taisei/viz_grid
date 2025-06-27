@@ -1025,6 +1025,9 @@ function closeFullScreenView() {
         console.log("SortableJS instance destroyed.");
     }
 
+    // フルスクリーンの中身をクリアして、不要な要素やリスナーが残らないようにする
+    fullscreenGrid.innerHTML = '';
+
     console.log("Fullscreen view closed");
 }
 
