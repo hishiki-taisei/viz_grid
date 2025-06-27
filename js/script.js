@@ -372,6 +372,8 @@ function handleClear() {
 function renderGrid() {
     console.log("Rendering grid...");
     gridContainer.innerHTML = '';
+    // レンダリングの度に一時的なグループをリセットし、ライトボックスやフルスクリーンが常に正しいデータを参照するようにする
+    window.tempFilteredGroups = {};
 
     // 1. Filter the folders based on selectedFolderName and currentFilters
     let folderNamesToDisplay = [];
@@ -465,7 +467,6 @@ function renderGrid() {
 
             // IMPORTANT: Store the sorted filtered group for lightbox/fullscreen use
             // We'll use a temporary mapping for this render cycle
-            if (!window.tempFilteredGroups) window.tempFilteredGroups = {};
             window.tempFilteredGroups[filename] = sortedFilteredGroup;
 
             sortedFilteredGroup.forEach((item, index) => {
