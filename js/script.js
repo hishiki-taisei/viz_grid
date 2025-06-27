@@ -41,8 +41,8 @@ let currentFilters = {
     memoryLength: '' // 追加 (数値または空文字)
 };
 
-// 追加: グリッドパラメータ表示状態
-let showGridParams = true;
+// グリッドパラメータは常時表示のため、状態変数は不要
+// let showGridParams = true;
 // 追加: 選択中のフォルダ名
 let selectedFolderName = null;
 
@@ -361,9 +361,7 @@ function handleClear() {
     droppedFolders.clear();
     folderParameters = {}; // Clear parameters
     resetFilters(); // Reset filters as well
-    gridParamsToggleContainer.classList.add('hidden'); // Hide grid params toggle
-    toggleGridParamsCheckbox.checked = false; // Uncheck the box
-    showGridParams = false; // Reset state variable
+    // パラメータ表示切り替え関連のUIリセットは不要
     renderFolderList();
     console.log("Grid cleared");
 }
@@ -529,21 +527,19 @@ function renderGrid() {
                     folderNamePara.textContent = item.folder;
                     infoDiv.appendChild(folderNamePara);
 
-                    // パラメータ表示切り替え (共通)
-                    if (showGridParams) {
-                        const params = folderParameters[item.folder];
-                        if (params) {
-                            const paramsPara = document.createElement('p');
-                            paramsPara.className = 'grid-item-params text-xs text-gray-500 mt-1';
-                            let paramParts = [];
-                            if (params.seed !== undefined) paramParts.push(`S: ${params.seed}`);
-                            paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
-                            let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
-                            if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [L: ${params.memoryLength}]`;
-                            paramParts.push(memoryPart);
-                            paramsPara.textContent = paramParts.join(' / ');
-                            infoDiv.appendChild(paramsPara);
-                        }
+                    // パラメータを常時表示
+                    const params = folderParameters[item.folder];
+                    if (params) {
+                        const paramsPara = document.createElement('p');
+                        paramsPara.className = 'grid-item-params text-xs text-gray-500 mt-1';
+                        let paramParts = [];
+                        if (params.seed !== undefined) paramParts.push(`S: ${params.seed}`);
+                        paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
+                        let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
+                        if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [L: ${params.memoryLength}]`;
+                        paramParts.push(memoryPart);
+                        paramsPara.textContent = paramParts.join(' / ');
+                        infoDiv.appendChild(paramsPara);
                     }
 
                     itemContainer.appendChild(infoDiv);
@@ -633,7 +629,7 @@ function renderFolderList() {
         folderList.classList.add('folder-list-collapsed'); // Ensure list is collapsed when empty
         toggleFolderListButton.textContent = '[+]'; // Reset button text
         toggleFolderListButton.setAttribute('aria-label', 'フォルダ一覧を全表示');
-        gridParamsToggleContainer.classList.add('hidden'); // Hide grid params toggle
+        // パラメータ表示切り替えUIは削除したため、関連処理も削除
         return;
     }
 
@@ -641,7 +637,7 @@ function renderFolderList() {
     folderFilterControls.classList.remove('hidden'); // Show filter controls
     clearButton.classList.remove('hidden');
     toggleFolderListButton.classList.remove('hidden'); // Show toggle button when folders exist
-    gridParamsToggleContainer.classList.remove('hidden'); // Show grid params toggle
+    // パラメータ表示切り替えUIは削除したため、関連処理も削除
 
     const sortedFolderNames = Array.from(droppedFolders).sort();
 
@@ -961,21 +957,19 @@ function openFullScreenView(filename) {
             folderNamePara.textContent = item.folder;
             infoDiv.appendChild(folderNamePara);
 
-            // フルスクリーンでもパラメータ表示切り替えを適用
-            if (showGridParams) {
-                const params = folderParameters[item.folder];
-                if (params) {
-                    const paramsPara = document.createElement('p');
-                    paramsPara.className = 'grid-item-params fullscreen-item-params text-sm text-gray-600 mt-1';
-                    let paramParts = [];
-                    if (params.seed !== undefined) paramParts.push(`Seed: ${params.seed}`);
-                    paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
-                    let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
-                    if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [Len: ${params.memoryLength}]`;
-                    paramParts.push(memoryPart);
-                    paramsPara.textContent = paramParts.join(', ');
-                    infoDiv.appendChild(paramsPara);
-                }
+            // フルスクリーンでもパラメータを常時表示
+            const params = folderParameters[item.folder];
+            if (params) {
+                const paramsPara = document.createElement('p');
+                paramsPara.className = 'grid-item-params fullscreen-item-params text-sm text-gray-600 mt-1';
+                let paramParts = [];
+                if (params.seed !== undefined) paramParts.push(`Seed: ${params.seed}`);
+                paramParts.push(`P: ${params.usePersonality ? '✅' : '❌'}`);
+                let memoryPart = `M: ${params.useMemory ? '✅' : '❌'}`;
+                if (params.useMemory && params.memoryLength !== undefined) memoryPart += ` [Len: ${params.memoryLength}]`;
+                paramParts.push(memoryPart);
+                paramsPara.textContent = paramParts.join(', ');
+                infoDiv.appendChild(paramsPara);
             }
 
             itemContainer.appendChild(infoDiv);
